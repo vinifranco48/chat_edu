@@ -1,0 +1,17 @@
+[project]
+name = "chat-edu"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.11",
+    "groq>=0.18.0",
+    "langchain-community>=0.3.19",
+    "langchain-text-splitters>=0.3.6",
+    "pypdf>=5.3.1",
+    "qdrant-client[fastembed]>=1.13.2",
+    "selenium>=4.29.0",
+    "uvicorn>=0.34.0",
+    "webdriver-manager>=4.0.2",
+]
