@@ -59,7 +59,7 @@ class VectorStoreService:
             }
             points_to_insert.append(
                 PointStruct(
-                    id=i, # Usar um UUID seria mais robusto: import uuid; id=str(uuid.uuid4())
+                    id=i, 
                     vector=emb,
                     payload=payload
                 )

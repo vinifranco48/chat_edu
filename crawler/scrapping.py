@@ -99,8 +99,8 @@ def navegar_e_extrair_dados(driver):
 
 # Exemplo de uso
 if __name__ == "__main__":
-    usuario = "vinicius.franco@alu.unibalsas.edu.br"
-    senha = "bem10048"
+    usuario = ""
+    senha = ""
     
     driver = realizar_login(usuario, senha)
     

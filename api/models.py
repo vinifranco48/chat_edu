@@ -13,13 +13,10 @@ class SourceInfo(BaseModel): # Renomeado de retrieved_docs para clareza no uso
 
 class QueryResponse(BaseModel):
     """Modelo para a resposta da API ao usuário."""
-    # --- CORRIGIDO ---
     # Tipo agora é opcional (str | None) e o default é None, tornando o campo não obrigatório.
     response: str | None = Field(None, description="Resposta textual gerada pelo chatbot")
-    # --- FIM DA CORREÇÃO ---
 
     # Melhoria: Usar default_factory para listas
-    retrieved_sources: List[SourceInfo] = Field(default_factory=list, description="Lista de fontes consultadas para gerar a resposta") # Nome atualizado
+    retrieved_sources: List[SourceInfo] = Field(default_factory=list, description="Lista de fontes consultadas para gerar a resposta") 
 
-    # Já estava correto (opcional com default None)
     error: str | None = Field(None, description="Mensagem de erro detalhada, se ocorrido")

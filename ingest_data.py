@@ -7,7 +7,7 @@ from services.vector_store_service import VectorStoreService
 import os
 from pathlib import Path
 
-def run_ingestion(): # Ou a lógica dentro do if settings.qdrant_mode == 'memory':
+def run_ingestion():
     """Executa o processo de ingestão para TODOS os PDFs em PDF_DIR."""
     print("--- Iniciando Processo de Ingestão de Múltiplos PDFs ---")
     start_time = time.time()
@@ -22,7 +22,6 @@ def run_ingestion(): # Ou a lógica dentro do if settings.qdrant_mode == 'memory
 
     if not pdf_files_found:
         print(f"Aviso: Nenhum arquivo PDF encontrado em '{pdf_directory}'.")
-        # Decide se quer continuar ou parar. Vamos parar por enquanto.
         return
 
     print(f"Encontrados {len(pdf_files_found)} arquivos PDF para processar:")
@@ -33,8 +32,6 @@ def run_ingestion(): # Ou a lógica dentro do if settings.qdrant_mode == 'memory
     print("\nCarregando e dividindo documentos...")
     for pdf_path in pdf_files_found:
         print(f"Processando: {pdf_path.name}...")
-        # A função load_and_split_pdf já existe e recebe um caminho
-        # Ela deve adicionar o 'source' correto nos metadados automaticamente
         documents_from_single_pdf = load_and_split_pdf(str(pdf_path)) # Converte Path para string
         if documents_from_single_pdf:
             all_documents.extend(documents_from_single_pdf) # Adiciona os chunks à lista geral
@@ -66,12 +63,9 @@ def run_ingestion(): # Ou a lógica dentro do if settings.qdrant_mode == 'memory
         return
     print(f"Total de embeddings gerados: {len(all_embeddings)}")
 
-    # 4. Inicializar serviço de vector store (como antes)
+    # Inicializar serviço de vector store (como antes)
     try:
         vector_store_service = VectorStoreService(vector_size=vector_size)
-        # IMPORTANTE: Certifique-se que _setup_collection NÃO APAGUE dados
-        # se estiver usando Qdrant persistente (modo url). Idealmente,
-        # ela deve criar a coleção APENAS se não existir. A versão com
         # recreate_collection apagará tudo a cada ingestão.
         print(f"AVISO: Verifique se a lógica de setup da coleção no VectorStoreService é segura para múltiplas ingestões (não use recreate_collection indiscriminadamente no modo 'url').")
 
@@ -79,7 +73,7 @@ def run_ingestion(): # Ou a lógica dentro do if settings.qdrant_mode == 'memory
          print(f"Erro crítico ao inicializar serviço de vector store: {e}. Abortando.")
          return
 
-    # 5. Inserir TODOS os chunks e embeddings no vector store de uma vez
+    # Inserir TODOS os chunks e embeddings no vector store de uma vez
     print("\nInserindo/Atualizando todos os pontos no Qdrant...")
     success = vector_store_service.upsert_documents(all_documents, all_embeddings)
 
@@ -91,6 +85,5 @@ def run_ingestion(): # Ou a lógica dentro do if settings.qdrant_mode == 'memory
     else:
         print(f"--- Ingestão Falhou após {duration:.2f} segundos ---")
 
-# Se este código estiver em ingest_data.py, adicione:
 if __name__ == "__main__":
     run_ingestion()

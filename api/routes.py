@@ -1,18 +1,15 @@
 from fastapi import APIRouter, HTTPException, Depends
-from langgraph.graph.state import StateGraph # Para tipagem do grafo compilado
-from typing import Annotated # Para Depends
+from langgraph.graph.state import StateGraph
+from typing import Annotated 
 
 from api.models import QueryRequest, QueryResponse
 from core.graph import GraphState # Importa o tipo do estado
 
 # Cria um router para os endpoints da API
 router = APIRouter(
-    prefix="/chat", # Prefixo para todos os endpoints neste router
-    tags=["Chatbot"] # Tag para a documentação Swagger/OpenAPI
+tags=["Chatbot"] # Tag para a documentação Swagger/OpenAPI
 )
 
-# Variável global temporária para o grafo compilado (ou usar Depends)
-# Idealmente, isso seria gerenciado por um framework de DI ou passado na criação do app
 compiled_graph_instance: StateGraph | None = None
 
 def set_compiled_graph(graph: StateGraph):
@@ -31,7 +28,7 @@ def get_compiled_graph() -> StateGraph:
 @router.post("/", response_model=QueryResponse)
 async def handle_chat_query(
     request: QueryRequest,
-    graph: Annotated[StateGraph, Depends(get_compiled_graph)] # Injeta o grafo
+    graph: Annotated[StateGraph, Depends(get_compiled_graph)] 
 ) -> QueryResponse:
     """
     Recebe a consulta do usuário, processa através do grafo LangGraph e retorna a resposta.
@@ -40,7 +37,6 @@ async def handle_chat_query(
     initial_state: GraphState = {"query": request.text}
 
     try:
-        # Invoca o grafo
         # Adicionar config se necessário: config={"recursion_limit": 5}
         final_state = graph.invoke(initial_state)
 
@@ -55,7 +51,6 @@ async def handle_chat_query(
             print("Erro: Grafo concluiu sem resposta e sem erro explícito.")
             return QueryResponse(error="Falha interna ao gerar a resposta.")
 
-        # Extrai informações das fontes recuperadas (opcional)
         sources = []
         retrieved = final_state.get("retrieved_docs", [])
         for doc_payload in retrieved:
@@ -75,5 +70,4 @@ async def handle_chat_query(
     except Exception as e:
         # Captura erros inesperados durante a invocação do grafo ou processamento
         print(f"Erro inesperado no endpoint /chat: {e}")
-        # Aqui sim, levanta HTTPException pois é um erro do servidor
         raise HTTPException(status_code=500, detail=f"Erro interno no servidor: {e}")

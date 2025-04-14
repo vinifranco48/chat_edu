@@ -50,10 +50,7 @@ def embed_query_node(state: GraphState, embedding_service: EmbeddingService) -> 
             return {"error": json.dumps({"node": "embed_query", "message": error_msg})}
 
         print("Embedding da query parece válido.")
-        # --- CORREÇÃO DA CHAVE ---
-        # Usa a chave correta (singular) definida no GraphState
         return {"query_embedding": embedding, "error": None}
-        # --- FIM DA CORREÇÃO ---
 
     except Exception as e:
         print(f"Erro EXCEPCIONAL no embed_query_node:")
@@ -71,13 +68,10 @@ def retrieve_documents_node(state: GraphState, vector_store_service: VectorStore
     print('--- Nó: Retrieve Documents ---')
     if state.get("error"):
         print(f"Erro anterior detectado: {state.get('error')}. Pulando recuperação.")
-        return {} # Pula se já houver erro
+        return {}
 
-    # --- CORREÇÃO DA CHAVE ---
     # Pega o embedding usando a chave correta (singular)
     query_embedding = state.get("query_embedding")
-    # --- FIM DA CORREÇÃO ---
-
     if not query_embedding: # Verifica se o embedding foi encontrado no estado
         print("Erro: Embedding da query não encontrado no estado.")
         # Define o erro e retorna
@@ -88,10 +82,8 @@ def retrieve_documents_node(state: GraphState, vector_store_service: VectorStore
         retrieved_payloads = vector_store_service.search(query_embedding, limit=settings.retrieval_limit)
         print(f"Recuperados {len(retrieved_payloads)} payloads do Qdrant.")
 
-        # --- CORREÇÃO DO GET PAYLOAD ---
         # Usa a chave 'text' corretamente
         context_texts = [payload.get('text') for payload in retrieved_payloads if payload.get('text')]
-        # --- FIM DA CORREÇÃO ---
 
         if not context_texts:
              print("Aviso: Nenhum texto encontrado nos payloads recuperados.")
@@ -133,11 +125,8 @@ def generate_response_node(state: GraphState, llm_service: LLMService) -> Dict[s
         prompt = format_rag_prompt(query=query, context=context)
         print(f"DEBUG: Prompt para LLM (início): {prompt[:200]}...")
 
-        # --- CORREÇÃO DA CHAMADA LLM ---
         # Usa o nome correto do método do LLMService
         response = llm_service.generate_response(prompt)
-        # --- FIM DA CORREÇÃO ---
-
         if response is None:
             print("Erro: LLM Service retornou None.")
             return {"error": json.dumps({"node": "generate_response", "message": "Falha ao gerar resposta do LLM."})}
