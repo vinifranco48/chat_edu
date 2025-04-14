@@ -1,25 +1,16 @@
-# Web Framework
-fastapi==0.109.2
-uvicorn[standard]==0.27.1
-pydantic==2.6.1
-
-# LangChain Stack
-langchain==0.1.9
-langchain-core==0.1.27
-langchain-community==0.0.24
-langchain-text-splitters==0.3.6
-langchain-groq==0.3.2
-langchain-huggingface==0.1.2
+fastapi
+uvicorn[standard]
+pydantic
+langchain>=0.1.9
+langchain-core>=0.3.34
+langchain-community
+langchain-text-splitters
+langchain-groq
+langchain-huggingface
 langgraph>=0.0.11
-
-# Vector Store and Embeddings
-qdrant-client[fastembed]==1.7.0
-sentence-transformers==2.5.1
-transformers==4.37.2
-
-# Document Processing
-pypdf==3.17.4
-
-# Other Utilities
-python-dotenv==1.0.0
-groq==0.18.0
+qdrant-client[fastembed]
+sentence-transformers
+transformers
+pypdf
+python-dotenv
+groq

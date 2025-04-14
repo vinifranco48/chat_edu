@@ -44,8 +44,8 @@ ALLOWED_ORIGINS = [
 print("--- Inicializando Aplicação Chat Edu ---")
 try:
     # Verifica se o PDF_PATH essencial existe
-    if not settings.pdf_path or not os.path.exists(os.path.abspath(settings.pdf_path)):
-         raise FileNotFoundError(f"Caminho do PDF (PDF_PATH='{settings.pdf_path}') inválido ou arquivo não encontrado. Verifique .env.")
+    if not settings.pdf_dir or not os.path.exists(os.path.abspath(settings.pdf_dir)):
+         raise FileNotFoundError(f"Caminho do PDF (PDF_PATH='{settings.pdf_dir}') inválido ou arquivo não encontrado. Verifique .env.")
 
     embedding_service = EmbeddingService()
     vector_size = embedding_service.get_embedding_dimension()
@@ -59,7 +59,7 @@ try:
     if settings.qdrant_mode == 'memory':
         print("\n--- Iniciando Ingestão In-Memory (Apenas para Desenvolvimento) ---")
         # Usa o pdf_path validado das settings
-        documents = load_and_split_pdf(settings.pdf_path)
+        documents = load_and_split_pdf(settings.pdf_dir)
         if documents:
             doc_contents = [doc.page_content for doc in documents]
             embeddings = embedding_service.embed_texts(doc_contents)

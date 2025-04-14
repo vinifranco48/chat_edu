@@ -22,7 +22,7 @@ class Settings(BaseSettings):
         "meta-llama/llama-4-maverick-17b-128e-instruct",
         validation_alias='LLM_MODEL_NAME'
     )
-    pdf_path: str = Field(..., validation_alias='PDF_PATH')
+    pdf_dir: str = Field("./data/", validation_alias='PDF_DIR')
 
     # --- Configurações do Qdrant ---
     qdrant_mode: str = Field("memory", validation_alias='QDRANT_MODE')
@@ -34,11 +34,6 @@ class Settings(BaseSettings):
     chunk_size: int = Field(600, validation_alias='CHUNK_SIZE')
     chunk_overlap: int = Field(50, validation_alias='CHUNK_OVERLAP')
 
-    # --- Configurações da API (CORS) ---
-    # REMOVIDO COMPLETAMENTE - Será tratado diretamente no main.py
-    # cors_allowed_origins_str: str = Field(...)
-    # cors_allowed_origins: List[str] = Field(...)
-    # REMOVIDO validador _assemble_cors_origins
 
     # --- Configurações do Grafo ---
     retrieval_limit: int = Field(3, validation_alias='RETRIEVAL_LIMIT')
