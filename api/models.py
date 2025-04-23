@@ -1,4 +1,3 @@
-# api/models.py
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional # Garanta que Optional esteja importado se usar
 
