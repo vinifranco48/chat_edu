@@ -18,11 +18,10 @@ def criar_diretorio_data():
         print("Diretório 'data' já existe.")
 
 def realizar_login(usuario, senha):
-    """Realiza login no sistema EAD"""
-    # Configurar o Chrome Driver
+    """Realiza login"""
     options = webdriver.ChromeOptions()
     options.add_argument('--enable-cookies')
-    # Adicionando opção para evitar erros de USB
+    options.add_argument('handle-all-redirects=true')
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
     
     # Adicionar configurações para download automático
@@ -120,7 +119,7 @@ def navegar_e_extrair_cursos(driver):
         print(f"Erro ao navegar e extrair dados: {str(e)}")
         return None
 
-def baixar_arquivo_com_selenium(driver, url, caminho_arquivo, pasta_destino):
+def baixar_arquivo_com_selenium(driver, url, nome_arquivo, pasta_destino='data'):
     """Baixa um arquivo diretamente usando o navegador Selenium"""
     try:
         # Armazenar a janela atual
@@ -133,9 +132,6 @@ def baixar_arquivo_com_selenium(driver, url, caminho_arquivo, pasta_destino):
         # Navegar para a URL do arquivo
         driver.get(url)
         time.sleep(2)  # Aguarda o carregamento
-        
-        # Nome base do arquivo (para verificar depois)
-        nome_base_arquivo = os.path.basename(caminho_arquivo)
         
         # Se for URL de pluginfile.php (link direto do Moodle), baixa diretamente
         if 'pluginfile.php' in url:
@@ -225,19 +221,13 @@ def acessar_e_baixar_pdfs_curso(driver, curso):
     """Acessa um curso e baixa todos os PDFs encontrados"""
     print(f"\n[+] Acessando curso: {curso['nome']} (ID: {curso['id']})")
     
-    # Criar pasta específica para o curso dentro de 'data'
-    nome_pasta_curso = re.sub(r'[\\/*?:"<>|]', "_", curso['nome'])  # Remove caracteres inválidos
-    pasta_curso = os.path.join('data', nome_pasta_curso)
+    pasta_destino = 'data'
     
-    if not os.path.exists(pasta_curso):
-        os.makedirs(pasta_curso)
-        print(f"  - Pasta criada: {pasta_curso}")
-    
-    # Atualizar a configuração do Chrome para a pasta específica do curso
+    # Configurar o diretório de download para a pasta data
     try:
         driver.execute_cdp_cmd('Page.setDownloadBehavior', {
             'behavior': 'allow',
-            'downloadPath': os.path.abspath(pasta_curso)
+            'downloadPath': os.path.abspath(pasta_destino)
         })
     except Exception as e:
         print(f"  ! Aviso: Não foi possível atualizar o diretório de download: {str(e)}")
@@ -273,16 +263,15 @@ def acessar_e_baixar_pdfs_curso(driver, curso):
     pdfs_baixados = 0
     for idx, pdf in enumerate(pdf_links):
         try:
-            # Criar um nome de arquivo seguro
-            nome_arquivo = re.sub(r'[\\/*?:"<>|]', "_", pdf['texto'])
-            nome_arquivo = f"{nome_arquivo[:50]}.pdf" if not nome_arquivo.endswith('.pdf') else nome_arquivo[:54]
-            caminho_arquivo = os.path.join(pasta_curso, nome_arquivo)
+            # Criar um nome de arquivo seguro com prefixo do curso para evitar conflitos
+            curso_prefixo = re.sub(r'[\\/*?:"<>|]', "_", curso['nome'])[:20]
+            texto_arquivo = re.sub(r'[\\/*?:"<>|]', "_", pdf['texto'])
+            nome_arquivo = f"{curso_prefixo}_{texto_arquivo[:30]}.pdf" if not texto_arquivo.endswith('.pdf') else f"{curso_prefixo}_{texto_arquivo[:34]}"
             
-            # Baixar o arquivo usando Selenium diretamente
             print(f"  - Baixando: {nome_arquivo} [{idx+1}/{len(pdf_links)}]")
             
             # Usar o método modificado que usa o próprio navegador para baixar
-            sucesso = baixar_arquivo_com_selenium(driver, pdf['url'], caminho_arquivo, pasta_curso)
+            sucesso = baixar_arquivo_com_selenium(driver, pdf['url'], nome_arquivo, pasta_destino)
             
             if sucesso:
                 pdfs_baixados += 1
@@ -334,18 +323,13 @@ def encontrar_links_diretos_aos_pdfs(driver, curso):
     driver.get(curso['url'])
     time.sleep(2)
     
-    # Criar pasta específica para o curso dentro de 'data'
-    nome_pasta_curso = re.sub(r'[\\/*?:"<>|]', "_", curso['nome'])
-    pasta_curso = os.path.join('data', nome_pasta_curso)
+    pasta_destino = 'data'
     
-    if not os.path.exists(pasta_curso):
-        os.makedirs(pasta_curso)
-    
-    # Atualizar a configuração do Chrome para a pasta específica do curso
+    # Configurar o diretório de download para a pasta data
     try:
         driver.execute_cdp_cmd('Page.setDownloadBehavior', {
             'behavior': 'allow',
-            'downloadPath': os.path.abspath(pasta_curso)
+            'downloadPath': os.path.abspath(pasta_destino)
         })
     except Exception as e:
         print(f"  ! Aviso: Não foi possível atualizar o diretório de download: {str(e)}")
@@ -368,13 +352,13 @@ def encontrar_links_diretos_aos_pdfs(driver, curso):
                 # Tentar acessar diretamente
                 print(f"  - Tentando acessar recurso: {texto}")
                 
-                # Criar um nome de arquivo seguro
-                nome_arquivo = re.sub(r'[\\/*?:"<>|]', "_", texto)
-                nome_arquivo = f"{nome_arquivo[:50]}.pdf" if not nome_arquivo.endswith('.pdf') else nome_arquivo[:54]
-                caminho_arquivo = os.path.join(pasta_curso, nome_arquivo)
+                # Criar um nome de arquivo seguro com prefixo do curso para evitar conflitos
+                curso_prefixo = re.sub(r'[\\/*?:"<>|]', "_", curso['nome'])[:20]
+                texto_arquivo = re.sub(r'[\\/*?:"<>|]', "_", texto)
+                nome_arquivo = f"{curso_prefixo}_{texto_arquivo[:30]}.pdf" if not texto_arquivo.endswith('.pdf') else f"{curso_prefixo}_{texto_arquivo[:34]}"
                 
                 # Baixar o arquivo
-                sucesso = baixar_arquivo_com_selenium(driver, href, caminho_arquivo, pasta_curso)
+                sucesso = baixar_arquivo_com_selenium(driver, href, nome_arquivo, pasta_destino)
                 
                 if sucesso:
                     pdfs_baixados += 1
