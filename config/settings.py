@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     pdf_dir: str = Field("./data/", validation_alias='PDF_DIR')
 
     # --- Configurações do Qdrant ---
-    qdrant_mode: str = Field("memory", validation_alias='QDRANT_MODE')
+    qdrant_mode: str = Field("url", validation_alias='QDRANT_MODE')
     qdrant_url: Optional[str] = Field(None, validation_alias='QDRANT_URL')
     qdrant_api_key: Optional[str] = Field(None, validation_alias='QDRANT_API_KEY')
     qdrant_collection_name: str = Field("chat-edu", validation_alias='QDRANT_COLLECTION_NAME')

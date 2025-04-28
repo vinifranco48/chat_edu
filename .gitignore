@@ -2,3 +2,4 @@
 .venv
 embedding_cache/
 /models--xenova--paraphrase-multilingual-mpnet-base-v2
+data

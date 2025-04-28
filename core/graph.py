@@ -58,7 +58,6 @@ def embed_query_node(state: GraphState, embedding_service: EmbeddingService) -> 
         print(detailed_error)
         return {"error": json.dumps({"node": "embed_query", "message": f"Exceção no embedding: {str(e)}", "details": detailed_error})}
 
-    # Fallback (não deve ser atingido com try/except adequado)
     print("AVISO: embed_query_node fallback. Retornando erro.")
     return {"error": json.dumps({"node": "embed_query", "message": "Fluxo inesperado no nó de embedding."})}
 
@@ -82,7 +81,6 @@ def retrieve_documents_node(state: GraphState, vector_store_service: VectorStore
         retrieved_payloads = vector_store_service.search(query_embedding, limit=settings.retrieval_limit)
         print(f"Recuperados {len(retrieved_payloads)} payloads do Qdrant.")
 
-        # Usa a chave 'text' corretamente
         context_texts = [payload.get('text') for payload in retrieved_payloads if payload.get('text')]
 
         if not context_texts:
