@@ -1,0 +1,61 @@
+.courses-container {
+  padding: 2rem;
+}
+
+.courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.course-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: transform 0.2s;
+}
+
+.course-card:hover {
+  transform: translateY(-2px);
+}
+
+.course-info h3 {
+  margin: 0 0 0.5rem 0;
+  color: var(--heading-color);
+}
+
+.course-footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.course-progress {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.empty-courses {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+}
+
+/* Temas */
+.dark-mode {
+  --card-bg: #1e1e1e;
+  --heading-color: #ffffff;
+  --text-secondary: #888888;
+  --border-color: #2a2a2a;
+}
+
+.light-mode {
+  --card-bg: #ffffff;
+  --heading-color: #333333;
+  --text-secondary: #666666;
+  --border-color: #e0e0e0;
+}

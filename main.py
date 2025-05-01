@@ -18,16 +18,12 @@ from services.embedding_service import EmbeddingService
 from services.vector_store_service import VectorStoreService
 from services.llm_service import LLMService
 from services.document_service import load_and_split_pdf
-
-# Importa o criador do grafo e o router da API
 from core.graph import create_compiled_graph
-from api.routes import router as chat_router, set_compiled_graph
+from api.routes import router as chat_router, set_compiled_graph, auth_router
 
-# --- Define as origens CORS ---
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    # Adicione outras origens se necessário
+    "http://127.0.0.1:3000"
 ]
 
 # --- Inicialização dos Serviços ---
@@ -102,7 +98,6 @@ try:
                          else:
                              print("Aviso: Falha ao inserir documentos no Vector Store in-memory (verifique logs do VectorStoreService).")
                      else:
-                         # Log mais detalhado se a contagem não bater
                          emb_count = len(embeddings) if embeddings else 0
                          doc_count = len(all_documents)
                          print(f"Aviso: Falha na geração de embeddings ou número de embeddings ({emb_count}) não corresponde ao número de documentos ({doc_count}). Nenhum dado foi inserido.")
@@ -117,7 +112,7 @@ try:
         duration = ingestion_end_time - ingestion_start_time
         print(f"--- Ingestão In-Memory Concluída em {duration:.2f} segundos ---\n")
 
-    else: # settings.qdrant_mode != 'memory'
+    else: 
           print(f"Modo Qdrant '{settings.qdrant_mode}'. Certifique-se de que os dados foram ingeridos no Qdrant persistente (ex: usando um script como 'ingest_data.py' que processe múltiplos PDFs).")
 
 
@@ -138,7 +133,7 @@ try:
     app = FastAPI(
         title="Chat Edu API",
         description="API para o chatbot educacional com LangGraph e RAG, processando múltiplos PDFs.",
-        version="1.2.1", # Incremento de versão
+        version="1.2.1",
     )
 
     # --- Middlewares ---
@@ -153,7 +148,9 @@ try:
 
     # --- Inclusão dos Routers da API ---
     app.include_router(chat_router, prefix="/chat") 
+    app.include_router(auth_router, prefix="/login", tags=["Authentication"])
     print("Router da API de Chat incluído em /chat.")
+    print("Router de autenticação incluído em /login.")
 
     print("--- Aplicação Pronta para Iniciar ---")
 
@@ -167,7 +164,6 @@ except Exception as e:
 
 
 # --- Ponto de Execução ---
-# (Lógica mantida como no código fornecido pelo usuário)
 if __name__ == "__main__":
     print("Iniciando servidor Uvicorn...")
     uvicorn.run(

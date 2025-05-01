@@ -23,6 +23,7 @@ def realizar_login(usuario, senha):
     options.add_argument('--enable-cookies')
     options.add_argument('handle-all-redirects=true')
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    options.add_argument('--headless')
     
     # Adicionar configurações para download automático
     prefs = {
@@ -136,11 +137,8 @@ def baixar_arquivo_com_selenium(driver, url, nome_arquivo, pasta_destino='data')
         # Se for URL de pluginfile.php (link direto do Moodle), baixa diretamente
         if 'pluginfile.php' in url:
             print(f"    √ Baixando arquivo diretamente: {url}")
-            # O Chrome deve baixar automaticamente com nossas configurações
-            time.sleep(3)  # Tempo para o download iniciar
+            time.sleep(3)
             print(f"    √ Download iniciado, verificando na pasta {pasta_destino}")
-            
-            # Fechar a aba e voltar para a original
             driver.close()
             driver.switch_to.window(janela_atual)
             return True
@@ -150,8 +148,6 @@ def baixar_arquivo_com_selenium(driver, url, nome_arquivo, pasta_destino='data')
         download_links = driver.find_elements(By.PARTIAL_LINK_TEXT, 'Download')
         
         pdf_url = url
-        
-        # Se encontrarmos um iframe, vamos extrair a URL do PDF
         if frames:
             try:
                 frame_src = frames[0].get_attribute('src')
@@ -162,8 +158,6 @@ def baixar_arquivo_com_selenium(driver, url, nome_arquivo, pasta_destino='data')
                     time.sleep(2)
             except Exception as e:
                 print(f"    ! Aviso ao processar frame: {str(e)}")
-        
-        # Se encontrarmos um link de download, vamos usá-lo
         elif download_links:
             try:
                 pdf_url = download_links[0].get_attribute('href')
@@ -177,9 +171,7 @@ def baixar_arquivo_com_selenium(driver, url, nome_arquivo, pasta_destino='data')
         current_url = driver.current_url
         if '.pdf' in current_url.lower():
             print(f"    √ URL direta para PDF detectada: {current_url}")
-            time.sleep(3)  # Aguardar o download iniciar
-            
-            # Fechar a aba e voltar para a original
+            time.sleep(3) 
             driver.close()
             driver.switch_to.window(janela_atual)
             return True
@@ -204,7 +196,7 @@ def baixar_arquivo_com_selenium(driver, url, nome_arquivo, pasta_destino='data')
         
         print(f"    ⚠ O arquivo pode ter sido baixado para a pasta de downloads do navegador.")
         
-        return True  # Consideramos que houve tentativa de download
+        return True
     
     except Exception as e:
         print(f"    ✗ Erro ao baixar arquivo: {str(e)}")
@@ -295,13 +287,11 @@ def buscar_recursos_adicionais(driver, curso):
                 for botao in botoes_expandir:
                     try:
                         botao.click()
-                        time.sleep(0.5)  # Aguardar a expansão
+                        time.sleep(0.5) 
                     except:
                         pass
             except:
                 pass
-            
-            # Também verificar botões com classe "collapsed" ou similar
             botoes_collapse = secao.find_elements(By.CSS_SELECTOR, '.collapsed, [aria-expanded="false"]')
             for botao in botoes_collapse:
                 try:
@@ -348,11 +338,7 @@ def encontrar_links_diretos_aos_pdfs(driver, curso):
             # Verificar se é um link relevante
             if href and ('/mod/resource' in href or '/pluginfile.php' in href):
                 texto = link.text.strip() or f"recurso_{len(recursos)+1}"
-                
-                # Tentar acessar diretamente
                 print(f"  - Tentando acessar recurso: {texto}")
-                
-                # Criar um nome de arquivo seguro com prefixo do curso para evitar conflitos
                 curso_prefixo = re.sub(r'[\\/*?:"<>|]', "_", curso['nome'])[:20]
                 texto_arquivo = re.sub(r'[\\/*?:"<>|]', "_", texto)
                 nome_arquivo = f"{curso_prefixo}_{texto_arquivo[:30]}.pdf" if not texto_arquivo.endswith('.pdf') else f"{curso_prefixo}_{texto_arquivo[:34]}"
@@ -371,8 +357,8 @@ def encontrar_links_diretos_aos_pdfs(driver, curso):
 def main():
     """Função principal para execução do script"""
     # Configurações
-    usuario = 'vinicius.franco@alu.unibalsas.edu.br'
-    senha = 'bem10048'
+    usuario = ''
+    senha = ''
     
     driver = None
     

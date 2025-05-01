@@ -4,10 +4,19 @@ from typing import Annotated
 
 from api.models import QueryRequest, QueryResponse
 from core.graph import GraphState # Importa o tipo do estado
+from crawler.login import navegar_e_extrair_cursos_visitando, realizar_login
+import time
+import traceback
+import os
 
-# Cria um router para os endpoints da API
+# Cria um router para os endpoints da API de chat
 router = APIRouter(
-tags=["Chatbot"] # Tag para a documentação Swagger/OpenAPI
+    tags=["Chatbot"] # Tag para a documentação Swagger/OpenAPI
+)
+
+# Cria um router separado para autenticação
+auth_router = APIRouter(
+    tags=["Authentication"] # Tag para a documentação Swagger/OpenAPI
 )
 
 compiled_graph_instance: StateGraph | None = None
@@ -71,3 +80,74 @@ async def handle_chat_query(
         # Captura erros inesperados durante a invocação do grafo ou processamento
         print(f"Erro inesperado no endpoint /chat: {e}")
         raise HTTPException(status_code=500, detail=f"Erro interno no servidor: {e}")
+
+
+@auth_router.post("/")
+async def login(username: str, password: str):
+    """ Realiza login no site e retorna os cursos disponíveis. """
+    driver = None # Inicializa a variável fora do try
+    cursos_processados = [] # Inicializa lista de resultados
+    start_time = time.time() # Medir tempo total
+
+    try:
+        # 1. Tenta realizar o login
+        driver = realizar_login(username, password)
+
+        # 2. Verifica se o login foi bem-sucedido
+        if not driver:
+            print("\n-----------------------------------------")
+            print("VALIDAÇÃO: Falha no login. Script encerrado.")
+            print("-----------------------------------------")
+            return {"success": False, "message": "Falha no login. Verifique suas credenciais."}
+        else:
+            print("\n-----------------------------------------")
+            print("VALIDAÇÃO: Login realizado com sucesso!")
+            print(f"URL atual: {driver.current_url}")
+            print("-----------------------------------------")
+
+            # 3. Se o login funcionou, tenta extrair os cursos
+            cursos_processados = navegar_e_extrair_cursos_visitando(driver)
+
+            print("\n------------------- RESULTADO FINAL --------------------")
+            if cursos_processados:
+                print(f"MATÉRIAS PROCESSADAS ({len(cursos_processados)}):")
+                erros_nome = 0
+                for i, curso in enumerate(cursos_processados):
+                    # Imprime formatado para melhor leitura
+                    print(f"{i+1: >3}. ID: {curso.get('id', 'N/A'): <8} | Nome: {curso.get('nome', 'N/A')}")
+                    # Descomente para ver a URL também
+                    # print(f"      URL: {curso.get('url', 'N/A')}")
+                    if "ERRO_" in curso.get('nome', ''):
+                        erros_nome += 1
+                if erros_nome > 0:
+                    print(f"\nAlerta: {erros_nome} curso(s) tiveram erro na busca do nome na página do curso.")
+                else:
+                    print("\nTodos os nomes de curso foram extraídos com sucesso das páginas.")
+                
+                return {"success": True, "cursos": cursos_processados}
+            else:
+                print("MATÉRIAS: Não foi possível listar ou processar as matérias após o login.")
+                return {"success": True, "message": "Login bem-sucedido, mas nenhuma matéria encontrada.", "cursos": []}
+            print("-------------------------------------------------------")
+
+    except KeyboardInterrupt:
+        # Permite interromper o script com Ctrl+C de forma limpa
+        print("\nOperação interrompida pelo usuário (Ctrl+C).")
+        return {"success": False, "message": "Operação interrompida pelo usuário."}
+    except Exception as e_main:
+        # Captura qualquer outra exceção não tratada
+        print(f"\nErro inesperado durante a execução principal: {str(e_main)}")
+        traceback.print_exc()
+        return {"success": False, "message": f"Erro inesperado: {str(e_main)}"}
+    finally:
+        # Este bloco SEMPRE será executado, independentemente de erros ou interrupções
+        end_time = time.time()
+        print(f"\nTempo total de execução: {end_time - start_time:.2f} segundos")
+        if driver:
+            print("Encerrando o navegador...")
+            try:
+                driver.quit() # Garante que o navegador e o driver sejam fechados
+                print("Navegador encerrado com sucesso.")
+            except Exception as e_quit:
+                print(f"Erro ao tentar fechar o navegador: {str(e_quit)}")
+                print("Pode ser necessário fechar processos 'chrome' ou 'chromedriver' manualmente.")
