@@ -1,137 +1,119 @@
 import React, { useState } from 'react';
-import './App.css'; // Reutiliza o CSS existente
+import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
+import './Login.css';
 
-// Props esperadas:
-// - onLoginSuccess: Função chamada com os dados do usuário (cursos) após login bem-sucedido.
-// - isDarkMode: Booleano para aplicar o tema correto (opcional, mas recomendado para consistência)
-function Login({ onLoginSuccess, isDarkMode }) {
+const Login = ({ onLoginSuccess, isDarkMode }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-  // URL base do backend - pode ser configurada via variável de ambiente
-  // ou definida explicitamente para desenvolvimento/produção
   const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault(); // Impede o recarregamento da página
+  const handleLoginSubmit = async e => {
+    e.preventDefault();
     if (!username || !password) {
       setError('Por favor, preencha o usuário e a senha.');
       return;
     }
-
     setIsLoading(true);
     setError(null);
-
     try {
-      // Ajustando o endpoint para incluir a barra no final (/login/)
-      // FastAPI espera os parâmetros como query parameters, não como form data
-      const response = await fetch(`${API_BASE_URL}/login/?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`, {
+      const loginUrl = `${API_BASE_URL}/login/?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+      const response = await fetch(loginUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Importante para lidar com cookies de autenticação
+        credentials: 'include',
       });
-
-      // Tenta pegar dados da resposta, mesmo se não for OK
       let data;
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        // Se não for JSON, trata como texto ou vazio
-        const textContent = await response.text();
-        data = textContent ? { message: textContent } : null;
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('application/json')) data = await response.json();
+      else {
+        const text = await response.text();
+        data = text ? { message: text } : null;
       }
-
       if (!response.ok) {
-        // Se o backend retornar um JSON de erro com 'detail' (comum no FastAPI)
-        const errorMessage = data?.detail || data?.message || `Credenciais inválidas ou erro no servidor (Status: ${response.status}).`;
-        throw new Error(errorMessage);
+        const msg = data?.detail || data?.message || `Erro ${response.status}`;
+        throw new Error(msg);
       }
-
-      // Login bem-sucedido!
-      console.log("Login bem-sucedido, dados recebidos:", data);
-      
-      // Verifica a estrutura dos dados retornados pelo backend
-      // FastAPI OAuth provavelmente retorna um token e talvez dados do usuário
-      const userData = {
-        username: username,
-        ...(data || {}) // Incorpora todos os dados retornados pelo backend, se houver
-      };
-      
-      onLoginSuccess(userData);
-
+      onLoginSuccess({ username, ...data });
     } catch (err) {
-      console.error("Erro no login:", err);
-      setError(err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.');
+      setError(err.message || 'Erro inesperado.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
-    // Adiciona a classe de tema dinamicamente
-    <div className={`login-page-container ${isDarkMode ? 'dark-mode' : 'light-mode'}`}>
-      <div className="login-form-wrapper">
-        {/* Reutiliza o logo e título do chat */}
-        <div className="login-header">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="logo-icon">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-            </svg>
-            <h1 className="login-title">Chat Edu - Login</h1>
-        </div>
+  const togglePasswordVisibility = () => setShowPassword(v => !v);
 
-        <form onSubmit={handleLoginSubmit} className="login-form">
+  return (
+    <div className={`login-page-container ${isDarkMode ? 'dark-mode' : 'light-mode'}`}>
+      <div className="login-content-wrapper">
+        <header className="login-header">
+          <div className="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 ..." />
+            </svg>
+          </div>
+          <h1 className="login-title">Chat Edu</h1>
+          <p>Faça login para continuar</p>
+        </header>
+
+        {error && <div className="login-error-message"><AlertCircle className="icon" />{error}</div>}
+
+        <form className="login-form" onSubmit={handleLoginSubmit}>
           <div className="login-input-group">
             <label htmlFor="username">Usuário</label>
             <input
-              type="text"
               id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Seu usuário"
+              type="text"
               className="login-input"
+              placeholder="Digite seu usuário"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
               disabled={isLoading}
-              aria-label="Campo de usuário"
+              autoComplete="username"
+              autoFocus
             />
           </div>
+
           <div className="login-input-group">
             <label htmlFor="password">Senha</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Sua senha"
-              className="login-input"
-              disabled={isLoading}
-              aria-label="Campo de senha"
-            />
+            <div className="relative-container">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                className="login-input"
+                placeholder="Digite sua senha"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                disabled={isLoading}
+                autoComplete="current-password"
+              />
+              <button type="button" className="toggle-password" onClick={togglePasswordVisibility}>
+                {showPassword ? <EyeOff /> : <Eye />}
+              </button>
+            </div>
           </div>
 
-          {error && <p className="login-error-message">{error}</p>}
-
-          <button
-            type="submit"
-            className="login-button"
-            disabled={isLoading || !username || !password}
-          >
-            {isLoading ? (
-              <div className="button-loading-indicator">
-                <span></span><span></span><span></span>
-              </div>
-            ) : (
-              'Entrar'
-            )}
+          <button type="submit" className="login-button" disabled={isLoading}>
+            {isLoading
+              ? <div className="button-loading-indicator">
+                  <span className="dot" />
+                  <span className="dot" />
+                  <span className="dot" />
+                </div>
+              : <><LogIn className="mr-2" />Entrar</>
+            }
           </button>
         </form>
+
+        <div className="login-footer-links">
+          <a href="#forgot">Esqueci a senha</a> • <a href="#register">Criar conta</a>
+        </div>
       </div>
     </div>
   );
-}
+};
 
 export default Login;

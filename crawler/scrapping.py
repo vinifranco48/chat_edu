@@ -357,8 +357,8 @@ def encontrar_links_diretos_aos_pdfs(driver, curso):
 def main():
     """Função principal para execução do script"""
     # Configurações
-    usuario = ''
-    senha = ''
+    usuario = 'vinicius.franco@alu.unibalsas.edu.br'
+    senha = 'bem10048'
     
     driver = None
     

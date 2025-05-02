@@ -6,6 +6,8 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout }) {
   const [chatHistory, setChatHistory] = useState([]);
   const chatHistoryRef = useRef(null);
   const textareaRef = useRef(null);
+  // eslint-disable-next-line no-unused-vars
+  const [clearChat, setClearChat] = useState(false);
 
   // Auto-scroll para novas mensagens
   useEffect(() => {
@@ -25,10 +27,6 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout }) {
     adjustHeight();
   }, [query]);
 
-  const clearChat = () => {
-    setChatHistory([]);
-  };
-
   const fetchChatResponse = useCallback(async (text) => {
     setLoading(true);
     const userMessage = { type: 'question', content: text };
@@ -38,11 +36,11 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout }) {
     try {
       const response = await fetch('http://localhost:8000/chat/', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userData.token}` // Adiciona token se necessário
+          'Authorization': `Bearer ${userData.token}`
         },
-        body: JSON.stringify({ text: text }),
+        body: JSON.stringify({ text: text })
       });
 
       let data;
@@ -57,18 +55,21 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout }) {
       }
 
       if (data.error) {
-        setChatHistory(prev => [...prev, { type: 'error', content: `Erro: ${data.error}` }]);
+        setChatHistory(prev => [...prev, { 
+          type: 'error', 
+          content: `Erro: ${data.error}` 
+        }]);
       } else if (data.response) {
         setChatHistory(prev => [...prev, {
           type: 'answer',
           content: data.response,
-          sources: data.retrieved_sources || [],
+          sources: data.retrieved_sources || []
         }]);
       }
     } catch (error) {
-      setChatHistory(prev => [...prev, { 
-        type: 'error', 
-        content: `Erro ao comunicar com o chat: ${error.message}` 
+      setChatHistory(prev => [...prev, {
+        type: 'error',
+        content: `Erro ao comunicar com o chat: ${error.message}`
       }]);
     } finally {
       setLoading(false);
@@ -176,10 +177,10 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout }) {
                 rows={1}
                 aria-label="Campo de mensagem"
               ></textarea>
-              <button 
-                type="submit" 
-                disabled={loading || !query.trim()} 
-                className="send-button" 
+              <button
+                type="submit"
+                disabled={loading || !query.trim()}
+                className="send-button"
                 title="Enviar mensagem"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
