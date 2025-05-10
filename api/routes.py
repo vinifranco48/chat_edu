@@ -8,15 +8,19 @@ from crawler.login import navegar_e_extrair_cursos_visitando, realizar_login
 import time
 import traceback
 import os
+import service.vector_store_service as vector_store_service
 
 # Cria um router para os endpoints da API de chat
 router = APIRouter(
-    tags=["Chatbot"] # Tag para a documentação Swagger/OpenAPI
+    tags=["Chatbot"]
 )
 
-# Cria um router separado para autenticação
 auth_router = APIRouter(
-    tags=["Authentication"] # Tag para a documentação Swagger/OpenAPI
+    tags=["Authentication"]
+)
+
+auth_router = APIRouter(
+    tags=["Retriever"] 
 )
 
 compiled_graph_instance: StateGraph | None = None
@@ -52,7 +56,6 @@ async def handle_chat_query(
         # Processa o resultado
         if final_state.get("error"):
             print(f"Erro retornado pelo grafo: {final_state['error']}")
-            # Não levanta HTTPException aqui, retorna no corpo da resposta
             return QueryResponse(error=final_state["error"])
 
         response_text = final_state.get("response")
@@ -151,3 +154,17 @@ async def login(username: str, password: str):
             except Exception as e_quit:
                 print(f"Erro ao tentar fechar o navegador: {str(e_quit)}")
                 print("Pode ser necessário fechar processos 'chrome' ou 'chromedriver' manualmente.")
+
+@auth_router.post("/")
+async def retriever_embeddings_id(id: str):
+    try:
+        # Verifica se o ID do curso é válido
+        if not id or not isinstance(id, str):
+            raise HTTPException(status_code=400, detail="ID do curso inválido.")
+        result = vector_store_service.search_with_filter(id_course=id)
+        return result
+    except Exception as e:
+        print(f"Erro inesperado ao buscar embeddings: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao buscar embeddings.")
+
+

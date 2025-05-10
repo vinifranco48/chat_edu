@@ -8,13 +8,20 @@ import time
 import os
 import re
 from urllib.parse import urlparse
+import pathlib
+
+
+def sanitize(name: str) -> str:
+    # remove caracteres inválidos e limita o tamanho
+    safe = re.sub(r'[\\/*?:"<>|]', "_", name)
+    return safe[:50]
 
 def criar_diretorio_data():
     """Cria o diretório 'data' se não existir"""
     if not os.path.exists('data'):
         os.makedirs('data')
         print("Diretório 'data' criado com sucesso.")
-    else:
+    else:   
         print("Diretório 'data' já existe.")
 
 def realizar_login(usuario, senha):
@@ -209,11 +216,11 @@ def baixar_arquivo_com_selenium(driver, url, nome_arquivo, pasta_destino='data')
             pass
         return False
 
-def acessar_e_baixar_pdfs_curso(driver, curso):
+def acessar_e_baixar_pdfs_curso(driver, curso, pasta_destino='data'):
     """Acessa um curso e baixa todos os PDFs encontrados"""
     print(f"\n[+] Acessando curso: {curso['nome']} (ID: {curso['id']})")
     
-    pasta_destino = 'data'
+    os.makedirs(pasta_destino, exist_ok=True)
     
     # Configurar o diretório de download para a pasta data
     try:
@@ -388,9 +395,12 @@ def main():
         # Para cada curso, acessar e baixar PDFs
         for i, curso in enumerate(cursos):
             print(f"\nProcessando curso {i+1}/{len(cursos)}: {curso['nome']}")
-            
+            curso_safe = sanitize(curso['nome'])
+            pasta_curso = os.path.join('data', curso_safe)
+            os.makedirs(pasta_curso, exist_ok=True)
+            print(f"  → PDFs deste curso serão salvos em: {pasta_curso}")
             # Primeiro acesso e download inicial
-            pdfs_baixados = acessar_e_baixar_pdfs_curso(driver, curso)
+            pdfs_baixados = acessar_e_baixar_pdfs_curso(driver, curso, pasta_curso)
             
             # Buscar recursos adicionais que possam estar ocultos
             if pdfs_baixados == 0:
@@ -423,6 +433,8 @@ def main():
                 print("Navegador encerrado com sucesso.")
             except Exception as e:
                 print(f"Erro ao fechar navegador: {str(e)}")
+
+                
 
 # Execução do script
 if __name__ == "__main__":

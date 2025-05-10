@@ -50,8 +50,28 @@ class VectorStoreService:
                 print(f"Erro CRÍTICO ao TENTAR CRIAR a coleção '{self.collection_name}': {type(create_e).__name__} - {create_e}")
                 # É importante parar a aplicação se não puder garantir a coleção
                 raise RuntimeError(f"Falha ao garantir a existência/criação da coleção '{self.collection_name}': {create_e}")
+    def _ensure_payload_index(self, field_name: str, field_type: str = 'keyword'):
+        try:
+            collection_info = self.client.get_collection(collection_name=self.collection_name)  
 
-    def upsert_documents(self, documents: List[Document], embeddings:List[List[float]], batch_size: int = 100): # Adicionado batch_size
+            if field_name not in collection_info.payload_schema:
+                print(f"Criando indices payload para o campo '{field_name}' na coleção '{self.collection_name}'...")
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name=field_name,
+                    field_schema=models.PayloadSchemaType.KEYWORD,
+                )
+                print(f"Índice de payload '{field_name}' criado com sucesso.")
+            else:
+                print(f"Índice de payload '{field_name}' já existe na coleção '{self.collection_name}'.")
+        except Exception as e:
+            print(f"Erro ao garantir o índice de payload '{field_name}' na coleção '{self.collection_name}': {type(e).__name__} - {e}")
+            
+    def upsert_documents(self,
+                         documents: List[Document],
+                         embeddings: List[List[float]],
+                         id_course: str, # ID do curso para ESTE LOTE
+                         batch_size: int = 100):
         """Ingere documentos e seus embeddings no Qdrant em lotes."""
         if not documents or not embeddings or len(documents) != len(embeddings):
             print("Erro: documentos e embeddings não podem ser vazios ou de tamanhos diferentes.")
@@ -59,7 +79,7 @@ class VectorStoreService:
 
         total_docs = len(documents)
         num_batches = math.ceil(total_docs / batch_size) # Calcula quantos lotes serão necessários
-        print(f"Preparando para inserir/atualizar {total_docs} pontos em {num_batches} lotes de até {batch_size} pontos cada...")
+        print(f"Curso ID: {id_course}) Preparando para inserir/atualizar {total_docs} pontos em {num_batches} lotes de até {batch_size} pontos cada...")
 
         all_successful = True # Flag para rastrear o sucesso geral
 
@@ -81,12 +101,11 @@ class VectorStoreService:
                     "text": doc.page_content,
                     "source": doc.metadata.get('source', 'desconhecido'),
                     "page": doc.metadata.get('page', -1),
+                    "course_id": id_course, # ID do curso para ESTE LOTE
                     **doc.metadata # Adiciona todos os outros metadados
                 }
                 points_to_insert.append(
                     PointStruct(
-                        # ID do Ponto: Use start_index + j para um ID numérico sequencial simples.
-                        # Alternativas melhores para produção: UUIDs ou Hashes do conteúdo.
                         id=start_index + j,
                         vector=emb,
                         payload=payload
@@ -95,33 +114,31 @@ class VectorStoreService:
 
             if not points_to_insert:
                 print(f"Lote {i+1}/{num_batches}: Nenhum ponto válido para inserir. Pulando lote.")
-                continue # Pula para o próximo lote
+                continue
 
             print(f"Lote {i+1}/{num_batches}: Inserindo/Atualizando {len(points_to_insert)} pontos...")
             try:
                 operation_info = self.client.upsert(
                     collection_name=self.collection_name,
-                    wait=True, # Espera a operação ser concluída no servidor
+                    wait=True,
                     points=points_to_insert
                 )
                 print(f" -> Lote {i+1} Upsert Status: {operation_info.status}")
                 if operation_info.status != models.UpdateStatus.COMPLETED:
-                    all_successful = False # Marca falha se algum lote não completar
+                    all_successful = False
                     print(f" -> AVISO: Lote {i+1} não foi completado com sucesso.")
 
             except Exception as e:
                 print(f"Erro CRÍTICO durante o upsert do Lote {i+1}/{num_batches}: {type(e).__name__} - {e}")
-                # Você pode decidir parar tudo ou apenas marcar como falha e continuar
                 all_successful = False
-                # Poderia adicionar um 'return False' aqui se quiser parar na primeira falha de lote
                 # return False # Descomente para parar na primeira falha
 
         if all_successful:
-            print(f"Todos os {num_batches} lotes processados.")
+            print(f"Curso ID: {id_course} - Todos os {num_batches} lotes processados.")
         else:
-            print("Processamento de lotes concluído, mas ocorreram erros em um ou mais lotes.")
+            print(f"Curso ID: {id_course} - Processamento de lotes concluído, mas ocorreram erros.")
 
-        return all_successful # Retorna True se todos os lotes foram COMPLETED
+        return all_successful
 
 
     def search(self, query_vector: List[float], limit: int = 3) -> List[Dict[str, Any]]:
@@ -144,4 +161,32 @@ class VectorStoreService:
             return results
         except Exception as e:
             print(f"Erro durante a busca no Qdrant: {e}")
+            return []
+    
+    def search_with_filter(self, course_id_filter:str):
+        if not course_id_filter:
+            print("Erro: Filtro de ID do curso vazio.")
+            return []
+        print(f"Buscando documentos em '{self.collection_name}' para curso_id: {course_id_filter}...")
+
+        query_filter = models.filter(
+            must=[
+                models.FieldCondition(
+                    key="course_id",
+                    match=models.MatchValue(value=course_id_filter)
+                )
+            ]
+        )
+
+        try:
+            search_results = self.client.search(
+                collection_name=self.collection_name,
+                query_filter=query_filter,
+            )
+
+            results = [{"payload": hit.payload} for hit in search_results if hit.payload]
+            print(f"Busca(filtrada por curso){course_id_filter} encontrou {len(results)} resultados.")
+            return results
+        except Exception as e:
+            print(f"Erro durante a busca filtrada no Qdrant: {e}")
             return []

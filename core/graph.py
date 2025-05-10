@@ -95,7 +95,7 @@ def retrieve_documents_node(state: GraphState, vector_store_service: VectorStore
         return {
             "retrieved_docs": retrieved_payloads,
             "context": context,
-            "error": None # Limpa erro se a busca foi bem-sucedida
+            "error": None 
         }
 
     except Exception as e:
