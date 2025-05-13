@@ -1,16 +1,17 @@
+# api/routes.py
+
 from fastapi import APIRouter, HTTPException, Depends
 from langgraph.graph.state import StateGraph
-from typing import Annotated 
+from typing import Annotated, Optional
 
 from api.models import QueryRequest, QueryResponse
-from core.graph import GraphState  # Importa o tipo do estado
+from core.graph import GraphState
+import traceback
+from services.vector_store_service import VectorStoreService 
 from crawler.login import navegar_e_extrair_cursos_visitando, realizar_login
 import time
-import traceback
-import os
-from services.vector_store_service import VectorStoreService
 
-# Cria routers para os diferentes endpoints da API
+# Cria routers
 router = APIRouter(
     prefix="/chat",
     tags=["Chatbot"]
@@ -26,21 +27,32 @@ retriever_router = APIRouter(
     tags=["Retriever"]
 )
 
-compiled_graph_instance: StateGraph | None = None
-
+# Variáveis globais para instâncias injetadas
+compiled_graph_instance: Optional[StateGraph] = None # Usar Optional e inicializar com None
+_vector_store_service_instance: Optional[VectorStoreService] = None # Para o VectorStoreService
 
 def set_compiled_graph(graph: StateGraph):
     """Função para injetar o grafo compilado no router."""
     global compiled_graph_instance
     compiled_graph_instance = graph
 
-
-# Função de dependência para obter o grafo
 def get_compiled_graph() -> StateGraph:
     if compiled_graph_instance is None:
         raise RuntimeError("Grafo LangGraph não foi inicializado corretamente.")
     return compiled_graph_instance
 
+# --- Novas funções para injetar e obter o VectorStoreService ---
+def set_vector_store_service(service: VectorStoreService):
+    """Função para injetar a instância do VectorStoreService."""
+    global _vector_store_service_instance
+    _vector_store_service_instance = service
+
+def get_vector_store_service_dependency() -> VectorStoreService:
+    """Função de dependência para obter a instância do VectorStoreService."""
+    if _vector_store_service_instance is None:
+        raise RuntimeError("VectorStoreService não foi inicializado e injetado corretamente.")
+    return _vector_store_service_instance
+# --- Fim das novas funções ---
 
 @router.post("/", response_model=QueryResponse)
 async def handle_chat_query(
@@ -83,6 +95,7 @@ async def handle_chat_query(
         raise HTTPException(status_code=500, detail=f"Erro interno no servidor: {e}")
 
 
+
 @auth_router.post("/")
 async def login(username: str, password: str):
     """ Realiza login no site e retorna os cursos disponíveis. """
@@ -118,17 +131,53 @@ async def login(username: str, password: str):
 
 
 @retriever_router.post("/{course_id}")
-async def retriever_embeddings_id(course_id: str):
+async def retriever_embeddings_id(
+    course_id: str,
+    # Injeta a instância correta do VectorStoreService
+    svc: Annotated[VectorStoreService, Depends(get_vector_store_service_dependency)]
+):
     """Retorna embeddings filtrados por course_id do VectorStoreService."""
     try:
         if not course_id:
             raise HTTPException(status_code=400, detail="ID do curso inválido.")
-        svc = VectorStoreService()
-        embeddings = svc.search_with_filter(course_id_filter=course_id)
-        if not embeddings:
-            raise HTTPException(status_code=404, detail="Nenhum embedding encontrado para este curso.")
-        return {"embeddings": embeddings}
-    except HTTPException:
+        
+        # Não crie uma nova instância: svc = VectorStoreService()
+        # Agora 'svc' é a instância injetada, já inicializada com vector_size.
+        
+        # A sua função search_with_filter espera 'course_id_filter'
+        # e o resultado é uma lista de Documentos ou dicionários.
+        # Vamos assumir que retorna uma lista de objetos Document com page_content e metadata.
+        documents_with_embeddings = svc.get_all_by_course_id(course_id_filter=course_id)
+        
+        if not documents_with_embeddings:
+            # Alterado para retornar uma lista vazia em vez de 404,
+            # pois o frontend espera um objeto com a chave "embeddings"
+            return {"embeddings": []}
+            # raise HTTPException(status_code=404, detail="Nenhum embedding encontrado para este curso.")
+
+        # O frontend espera um dicionário com uma chave "embeddings" contendo uma lista.
+        # A natureza dos "embeddings" aqui precisa ser clarificada.
+        # Se `documents_with_embeddings` já for a lista de embeddings (vetores numéricos), ok.
+        # Se for uma lista de Documentos Langchain, você precisa extrair o conteúdo ou metadados relevantes.
+        # O frontend parece usar o resultado diretamente em `courseEmbeddings` e depois o envia
+        # para o /chat. O /chat endpoint em `QueryRequest` espera `embeddings: courseEmbeddings`.
+        # O grafo LangGraph provavelmente espera uma lista de Documentos ou strings.
+
+        # Exemplo: se documents_with_embeddings for uma lista de objetos Document do Langchain
+        # e você quer enviar os documentos para o frontend (que depois os envia para /chat)
+        # talvez seja melhor retornar os documentos serializáveis.
+        # Por enquanto, vou assumir que o que svc.search_with_filter retorna é o que o frontend espera.
+        
+        # Mapeie os documentos para o formato esperado pelo frontend/chat, se necessário.
+        # O frontend espera que courseEmbeddings seja usado no corpo da requisição para /chat.
+        # O backend /chat, por sua vez, passa isso para o grafo.
+        # Se o grafo espera Documentos, e `svc.search_with_filter` retorna Documentos,
+        # o frontend precisa ser capaz de serializar/deserializar isso, o que não é trivial.
+
+        # Assumindo que `svc.search_with_filter` retorna dados serializáveis que o frontend pode manipular:
+        return {"embeddings": documents_with_embeddings }
+
+    except HTTPException: #NOSONAR
         raise
     except Exception as e:
         print(f"Erro inesperado ao buscar embeddings: {e}")

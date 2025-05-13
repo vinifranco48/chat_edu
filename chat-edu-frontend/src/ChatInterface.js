@@ -35,7 +35,7 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout, selectedCo
 
     try {
       const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${API_BASE_URL}/chat/`, {
+      const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

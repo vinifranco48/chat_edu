@@ -62,7 +62,7 @@ def embed_query_node(state: GraphState, embedding_service: EmbeddingService) -> 
     return {"error": json.dumps({"node": "embed_query", "message": "Fluxo inesperado no nó de embedding."})}
 
 
-def retrieve_documents_node(state: GraphState, vector_store_service: VectorStoreService) -> Dict[str, Any]:
+def retrieve_documents_node(state: GraphState, vector_store_service: VectorStoreService, id_course: str) -> Dict[str, Any]:
     """Nó para recuperar documentos relevantes com base no embedding da query."""
     print('--- Nó: Retrieve Documents ---')
     if state.get("error"):
@@ -78,7 +78,7 @@ def retrieve_documents_node(state: GraphState, vector_store_service: VectorStore
 
     try:
         print(f"DEBUG: Buscando documentos com embedding (primeiros 5): {query_embedding[:5]}...")
-        retrieved_payloads = vector_store_service.search(query_embedding, limit=settings.retrieval_limit)
+        retrieved_payloads = vector_store_service.search(query_embedding, limit=settings.retrieval_limit, id_course=id_course)
         print(f"Recuperados {len(retrieved_payloads)} payloads do Qdrant.")
 
         context_texts = [payload.get('text') for payload in retrieved_payloads if payload.get('text')]
