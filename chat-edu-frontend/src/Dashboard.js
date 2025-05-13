@@ -8,9 +8,17 @@ import ChatInterface from './ChatInterface';
 
 function Dashboard({ user, onLogout, isDarkMode, toggleDarkMode }) {
   const [activeSection, setActiveSection] = useState('chat'); // Começar com o chat ativo
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [courseEmbeddings, setCourseEmbeddings] = useState(null);
   
   // Verifica se o usuário tem cursos
   const hasCourses = user?.cursos && user.cursos.length > 0;
+
+  const handleCourseSelect = (courseId, embeddings) => {
+    setSelectedCourse(courseId);
+    setCourseEmbeddings(embeddings);
+    setActiveSection('chat'); // Troca automaticamente para o chat
+  };
   
   const renderContent = () => {
     switch (activeSection) {
@@ -22,7 +30,8 @@ function Dashboard({ user, onLogout, isDarkMode, toggleDarkMode }) {
       case 'courses':
         return <CoursesList 
                  courses={user?.cursos || []} 
-                 isDarkMode={isDarkMode} 
+                 isDarkMode={isDarkMode}
+                 onCourseSelect={handleCourseSelect}
                />;
       case 'chat':
         return (
@@ -31,6 +40,8 @@ function Dashboard({ user, onLogout, isDarkMode, toggleDarkMode }) {
             isDarkMode={isDarkMode}
             toggleTheme={toggleDarkMode}
             onLogout={onLogout}
+            selectedCourse={selectedCourse}
+            courseEmbeddings={courseEmbeddings}
           />
         );
       default:

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout }) {
+function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout, selectedCourse, courseEmbeddings }) {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
@@ -34,13 +34,18 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout }) {
     setQuery('');
 
     try {
-      const response = await fetch('http://localhost:8000/chat/', {
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_BASE_URL}/chat/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${userData.token}`
         },
-        body: JSON.stringify({ text: text })
+        body: JSON.stringify({ 
+          text: text,
+          courseId: selectedCourse,
+          embeddings: courseEmbeddings
+        })
       });
 
       let data;
