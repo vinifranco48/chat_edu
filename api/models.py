@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional # Garanta que Optional esteja impor
 class QueryRequest(BaseModel):
     """Modelo para a requisição da consulta do usuário."""
     text: str = Field(..., min_length=1, description="Texto da consulta do usuário")
+    courseId: Optional[str] = None
 
 class SourceInfo(BaseModel): # Renomeado de retrieved_docs para clareza no uso
     """Modelo para informações de uma fonte recuperada."""

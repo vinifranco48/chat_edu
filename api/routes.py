@@ -63,7 +63,7 @@ async def handle_chat_query(
     Recebe a consulta do usuário, processa através do grafo LangGraph e retorna a resposta.
     """
     print(f"\n--- Nova Requisição API Recebida --- \nQuery: {request.text}")
-    initial_state: GraphState = {"query": request.text}
+    initial_state: GraphState = {"query": request.text,"course_id": request.courseId}
 
     try:
         final_state = graph.invoke(initial_state)

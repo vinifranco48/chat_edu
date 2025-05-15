@@ -35,6 +35,7 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout, selectedCo
 
     try {
       const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+       console.log('[ChatInterface] Enviando para /chat com courseId:', selectedCourse)
       const response = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers: {
@@ -43,8 +44,7 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout, selectedCo
         },
         body: JSON.stringify({ 
           text: text,
-          courseId: selectedCourse,
-          embeddings: courseEmbeddings
+          courseId: selectedCourse
         })
       });
 
@@ -80,7 +80,7 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout, selectedCo
       setLoading(false);
       textareaRef.current?.focus();
     }
-  }, [userData]);
+  }, [userData, selectedCourse]);
 
   const handleSubmit = (e) => {
     e?.preventDefault();
