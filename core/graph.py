@@ -16,6 +16,7 @@ from config.settings import settings
 class GraphState(TypedDict):
     """Define o estado que flui através do grafo."""
     query: str
+    id_course: Optional[str] # ID do curso (opcional)
     query_embedding: Optional[List[float]] # Usando Optional e singular
     retrieved_docs: List[Dict[str, Any]] # Payloads recuperados
     context: str                        # Contexto formatado para LLM
@@ -78,7 +79,7 @@ def retrieve_documents_node(state: GraphState, vector_store_service: VectorStore
 
     try:
         print(f"DEBUG: Buscando documentos com embedding (primeiros 5): {query_embedding[:5]}...")
-        retrieved_payloads = vector_store_service.search(query_embedding, limit=settings.retrieval_limit, id_course=id_course)
+        retrieved_payloads = vector_store_service.search(query_embedding, limit=settings.retrieval_limit, filter={"id_course": id_course} if id_course else None)
         print(f"Recuperados {len(retrieved_payloads)} payloads do Qdrant.")
 
         context_texts = [payload.get('text') for payload in retrieved_payloads if payload.get('text')]
@@ -152,7 +153,7 @@ def create_compiled_graph(
 
     # Adiciona nós, passando os serviços como argumentos fixos usando lambda
     workflow.add_node("embed_query", lambda state: embed_query_node(state, embedding_service))
-    workflow.add_node("retrieve_documents", lambda state: retrieve_documents_node(state, vector_store_service))
+    workflow.add_node("retrieve_documents", lambda state: retrieve_documents_node(state, vector_store_service, id_course=state.get("id_course")))
     workflow.add_node("generate_response", lambda state: generate_response_node(state, llm_service))
 
     # Define fluxo

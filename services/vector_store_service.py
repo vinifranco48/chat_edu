@@ -142,44 +142,34 @@ class VectorStoreService:
             print(f"Curso ID: {id_course} - Processamento de lotes concluído, mas ocorreram erros.")
         return all_successful
 
-    def search(self, query_vector: List[float], limit: int = 3, course_id_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+    def search(self, query_vector: List[float], limit: int = 3, filter: Optional[Dict] = None) -> List[Dict[str, Any]]:
         """Busca documentos relevantes no Qdrant, opcionalmente filtrando por course_id."""
         if not query_vector:
             print("Erro: Vetor de busca vazio.")
             return []
 
-        query_filter = None
-        if course_id_filter:
-            print(f"Aplicando filtro de course_id: {course_id_filter} na busca vetorial.")
-            query_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="course_id",
-                        match=models.MatchValue(value=course_id_filter)
-                    )
-                ]
-            )
+
 
         print(f"Buscando {limit} vizinhos mais próximos em '{self.collection_name}'...")
         try:
-            search_results = self.client.search(
+            search_result = self.client.search(
                 collection_name=self.collection_name,
                 query_vector=query_vector,
-                query_filter=query_filter, # Aplicar filtro se existir
+                query_filter=filter, # Aplicar filtro se existir
                 limit=limit,
                 with_payload=True
             )
-            results = [
+            return [
                 {
-                    "payload": hit.payload,
-                    "score": hit.score,
-                    "id": hit.id
-                } for hit in search_results if hit.payload
+                    "text": hit.payload.get("text", ""),
+                    "source": hit.payload.get("source", ""),
+                    "page": hit.payload.get("page", -1),
+                    "score": hit.score
+                }
+                for hit in search_result
             ]
-            print(f"Busca vetorial encontrou {len(results)} resultados.")
-            return results
         except Exception as e:
-            print(f"Erro durante a busca vetorial no Qdrant: {e}")
+            print(f"Error during vector search: {e}")
             return []
 
     def get_all_by_course_id(self, course_id_filter: str, limit: int = 1000, offset: Optional[str] = None) -> List[Dict[str, Any]]:
