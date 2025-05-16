@@ -31,12 +31,12 @@ class Settings(BaseSettings):
     qdrant_collection_name: str = Field("chat-edu", validation_alias='QDRANT_COLLECTION_NAME')
 
     # --- Configurações de Processamento de Documentos ---
-    chunk_size: int = Field(600, validation_alias='CHUNK_SIZE')
-    chunk_overlap: int = Field(50, validation_alias='CHUNK_OVERLAP')
+    chunk_size: int = Field(2000, validation_alias='CHUNK_SIZE')
+    chunk_overlap: int = Field(200, validation_alias='CHUNK_OVERLAP')
 
 
     # --- Configurações do Grafo ---
-    retrieval_limit: int = Field(3, validation_alias='RETRIEVAL_LIMIT')
+    retrieval_limit: int = Field(10, validation_alias='RETRIEVAL_LIMIT')
 
     # --- Cache para embeddings ---
     embedding_cache_dir: str = Field("embedding_cache", validation_alias="EMBEDDING_CACHE_DIR")

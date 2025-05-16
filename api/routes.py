@@ -62,8 +62,23 @@ async def handle_chat_query(
     """
     Recebe a consulta do usuário, processa através do grafo LangGraph e retorna a resposta.
     """
-    print(f"\n--- Nova Requisição API Recebida --- \nQuery: {request.text}")
-    initial_state: GraphState = {"query": request.text,"course_id": request.courseId}
+    # LOG CRUCIAL: O que está chegando do frontend?
+    print(f"\n--- Nova Requisição API Recebida (dentro de handle_chat_query) ---")
+    print(f"Query Text: {request.text}")
+    # Use getattr para evitar erro se courseId não estiver no modelo QueryRequest ou não for enviado
+    course_id_from_request = getattr(request, 'courseId', 'NÃO RECEBIDO')
+    print(f"Course ID Recebido do Request: {course_id_from_request}")
+
+    initial_state: GraphState = {
+        "query": request.text,
+        "id_course": course_id_from_request, # É AQUI QUE O ID DO CURSO É INJETADO NO ESTADO DO GRAFO
+        "query_embedding": None, # Inicialize outras chaves esperadas pelo GraphState
+        "retrieved_docs": [],
+        "context": "",
+        "response": None,
+        "error": None
+    }
+    print(f"Estado Inicial Configurado para o Grafo: {initial_state}")
 
     try:
         final_state = graph.invoke(initial_state)
