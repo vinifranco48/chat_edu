@@ -20,13 +20,12 @@ from services.vector_store_service import VectorStoreService
 from services.llm_service import LLMService
 from services.document_service import load_and_split_pdf
 from core.graph import create_compiled_graph
-
-# Importando os routers e as funções "setter"
 from api.routes import router as chat_router
 from api.routes import auth_router
 from api.routes import retriever_router
+from api.routes import flashcards_router
 from api.routes import set_compiled_graph
-from api.routes import set_vector_store_service # <--- Importar o novo setter
+from api.routes import set_vector_store_service 
 
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -49,7 +48,6 @@ try:
     llm_service = LLMService()
 
     if settings.qdrant_mode == 'memory':
-        # ... (seu código de ingestão in-memory) ...
         print(f"\n--- Iniciando Ingestão In-Memory (Modo '{settings.qdrant_mode}') ---")
         ingestion_start_time = time.time()
 
@@ -71,10 +69,9 @@ try:
 
         if all_documents:
             all_contents = [doc.page_content for doc in all_documents]
-            doc_embeddings = embedding_service.embed_texts(all_contents) # Renomeado para não confundir com a variável 'embeddings'
+            doc_embeddings = embedding_service.embed_texts(all_contents) 
             if doc_embeddings and len(doc_embeddings) == len(all_documents):
                 print(f"Gerando e inserindo {len(doc_embeddings)} embeddings...")
-                # Passando os embeddings corretos para o vector_store_service
                 vector_store_service.upsert_documents(all_documents, doc_embeddings)
             else:
                 print("Falha na geração de embeddings ou contagem divergente.")
@@ -87,13 +84,13 @@ try:
     print("Criando o grafo LangGraph...")
     compiled_graph = create_compiled_graph(
         embedding_service=embedding_service,
-        vector_store_service=vector_store_service, # Passando a instância correta
+        vector_store_service=vector_store_service,
         llm_service=llm_service
     )
     set_compiled_graph(compiled_graph)
     print("Grafo LangGraph injetado no router.")
     
-    set_vector_store_service(vector_store_service) # <--- Injeta a instância do VSS
+    set_vector_store_service(vector_store_service) 
     print("VectorStoreService injetado no router.")
 
     app = FastAPI(
@@ -113,6 +110,7 @@ try:
     app.include_router(chat_router)
     app.include_router(auth_router)
     app.include_router(retriever_router)
+    app.include_router(flashcards_router)
 
     print("Rotas registradas:")
     for route in app.routes:

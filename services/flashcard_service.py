@@ -1,5 +1,4 @@
 from groq import Groq, APIError
-from vector_store_service import VectorStoreService
 import json
 from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
@@ -7,13 +6,12 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import settings
+from services.vector_store_service import VectorStoreService
 
-    
-    # Obter a chave da API do ambiente
 load_dotenv()
 class FlashcardService:
 
-    def __init__(self, vector_size=768, api_key: Optional[str] = None):
+    def __init__(self, vector_size=1536, api_key: Optional[str] = None):
         self.vector_store = VectorStoreService(vector_size)
         self.client = Groq(api_key=api_key) if api_key else None
         
@@ -105,7 +103,7 @@ class FlashcardService:
                         {"role": "user", "content": prompt}
                     ],
                     temperature=0.5,
-                    max_tokens=2000  # Reduzindo para garantir que não exceda os limites
+                    max_tokens=2000  
                 )
                 response_text = response.choices[0].message.content
 
@@ -122,7 +120,7 @@ class FlashcardService:
                 
             except APIError as e:
                 print(f"Erro na API do modelo para chunk {i+1}: {e}")
-                continue  # Continue com o próximo chunk se houver erro
+                continue  
             except json.JSONDecodeError as e:
                 print(f"Erro ao decodificar resposta JSON para chunk {i+1}: {e}")
                 print(f"Resposta original: {response_text}")

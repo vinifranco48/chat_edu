@@ -1,6 +1,6 @@
 # api/routes.py
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from langgraph.graph.state import StateGraph
 from typing import Annotated, Optional
 
@@ -8,9 +8,16 @@ from api.models import QueryRequest, QueryResponse
 from core.graph import GraphState
 import traceback
 from services.vector_store_service import VectorStoreService 
+from services.flashcard_service import FlashcardService
 from crawler.login import navegar_e_extrair_cursos_visitando, realizar_login
 import time
+from dotenv import load_dotenv
+import sys
+import os
+from config.settings import settings 
 
+
+load_dotenv()
 # Cria routers
 router = APIRouter(
     prefix="/chat",
@@ -27,9 +34,14 @@ retriever_router = APIRouter(
     tags=["Retriever"]
 )
 
+
+flashcards_router = APIRouter(
+    prefix="/flashcards",
+    tags=["flashcards"]
+)
 # Variáveis globais para instâncias injetadas
-compiled_graph_instance: Optional[StateGraph] = None # Usar Optional e inicializar com None
-_vector_store_service_instance: Optional[VectorStoreService] = None # Para o VectorStoreService
+compiled_graph_instance: Optional[StateGraph] = None 
+_vector_store_service_instance: Optional[VectorStoreService] = None 
 
 def set_compiled_graph(graph: StateGraph):
     """Função para injetar o grafo compilado no router."""
@@ -41,7 +53,6 @@ def get_compiled_graph() -> StateGraph:
         raise RuntimeError("Grafo LangGraph não foi inicializado corretamente.")
     return compiled_graph_instance
 
-# --- Novas funções para injetar e obter o VectorStoreService ---
 def set_vector_store_service(service: VectorStoreService):
     """Função para injetar a instância do VectorStoreService."""
     global _vector_store_service_instance
@@ -52,7 +63,7 @@ def get_vector_store_service_dependency() -> VectorStoreService:
     if _vector_store_service_instance is None:
         raise RuntimeError("VectorStoreService não foi inicializado e injetado corretamente.")
     return _vector_store_service_instance
-# --- Fim das novas funções ---
+
 
 @router.post("/", response_model=QueryResponse)
 async def handle_chat_query(
@@ -61,18 +72,17 @@ async def handle_chat_query(
 ) -> QueryResponse:
     """
     Recebe a consulta do usuário, processa através do grafo LangGraph e retorna a resposta.
+    
     """
-    # LOG CRUCIAL: O que está chegando do frontend?
     print(f"\n--- Nova Requisição API Recebida (dentro de handle_chat_query) ---")
     print(f"Query Text: {request.text}")
-    # Use getattr para evitar erro se courseId não estiver no modelo QueryRequest ou não for enviado
     course_id_from_request = getattr(request, 'courseId', 'NÃO RECEBIDO')
     print(f"Course ID Recebido do Request: {course_id_from_request}")
 
     initial_state: GraphState = {
         "query": request.text,
-        "id_course": course_id_from_request, # É AQUI QUE O ID DO CURSO É INJETADO NO ESTADO DO GRAFO
-        "query_embedding": None, # Inicialize outras chaves esperadas pelo GraphState
+        "id_course": course_id_from_request, 
+        "query_embedding": None,
         "retrieved_docs": [],
         "context": "",
         "response": None,
@@ -155,13 +165,6 @@ async def retriever_embeddings_id(
     try:
         if not course_id:
             raise HTTPException(status_code=400, detail="ID do curso inválido.")
-        
-        # Não crie uma nova instância: svc = VectorStoreService()
-        # Agora 'svc' é a instância injetada, já inicializada com vector_size.
-        
-        # A sua função search_with_filter espera 'course_id_filter'
-        # e o resultado é uma lista de Documentos ou dicionários.
-        # Vamos assumir que retorna uma lista de objetos Document com page_content e metadata.
         documents_with_embeddings = svc.get_all_by_course_id(course_id_filter=course_id)
         
         if not documents_with_embeddings:
@@ -192,9 +195,44 @@ async def retriever_embeddings_id(
         # Assumindo que `svc.search_with_filter` retorna dados serializáveis que o frontend pode manipular:
         return {"embeddings": documents_with_embeddings }
 
-    except HTTPException: #NOSONAR
+    except HTTPException:
         raise
     except Exception as e:
         print(f"Erro inesperado ao buscar embeddings: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Erro interno ao buscar embeddings.")
+    
+@flashcards_router.post("/{id_course}")
+async def generate_flashcards(
+    id_course: str,
+    vector_size: int = Query(1536, description="Tamanho do vetor para o serviço de flashcards.") # Explicitamente como Query
+):
+    try:
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            print("!!! ERRO CRÍTICO: GROQ_API_KEY não está configurada no ambiente !!!")
+            raise HTTPException(status_code=500, detail="Configuração do servidor incompleta.")
+
+        # Assumindo que 'settings.llm_model_name' existe e está configurado
+        if not hasattr(settings, 'llm_model_name') or not settings.llm_model_name:
+            print("!!! ERRO CRÍTICO: settings.llm_model_name não está configurado !!!")
+            raise HTTPException(status_code=500, detail="Configuração do servidor incompleta.")
+
+        # Lembre-se da discussão sobre a instância do VectorStoreService usada aqui
+        flashcard_service_instance = FlashcardService(vector_size=vector_size, api_key=api_key)
+        
+        list_flashcards = flashcard_service_instance.create_flashcards(
+            id_course=id_course,
+            model=settings.llm_model_name
+        )
+        
+        # create_flashcards deve retornar uma lista (pode ser vazia)
+        return list_flashcards
+
+    except HTTPException: # Re-raise HTTPExceptions para que não sejam capturadas pelo catch-all
+        raise
+    except Exception as e:
+        print(f"!!! ERRO INESPERADO ao gerar flashcards para o curso {id_course} !!!")
+        print(f"Tipo de Erro: {type(e).__name__}, Mensagem: {str(e)}")
+        traceback.print_exc() # Imprime o stack trace completo no console do backend
+        raise HTTPException(status_code=500, detail=f"Erro interno ao gerar flashcards: {str(e)}")
