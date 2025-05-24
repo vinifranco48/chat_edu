@@ -1,11 +1,14 @@
-# services/vector_store_service.py
-from typing import List, Dict, Any, Optional # Adicionar Optional
+from typing import List, Dict, Any, Optional 
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.models import PointStruct
 from langchain_core.documents import Document
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import settings
 import math
-import uuid # <--- ADICIONAR IMPORT DO UUID
+import uuid 
+from config.settings import settings
 
 class VectorStoreService:
     def __init__(self, vector_size: int):
@@ -59,22 +62,8 @@ class VectorStoreService:
     def _ensure_payload_index(self, field_name: str, field_type: models.PayloadSchemaType = models.PayloadSchemaType.KEYWORD):
         try:
             collection_info = self.client.get_collection(collection_name=self.collection_name)
-            
-            # A verificação de índice de payload pode ser um pouco diferente dependendo da versão do cliente
-            # Esta é uma abordagem comum: tentar criar e capturar exceção se já existir, ou verificar
-            # o campo 'payload_schema' em collection_info.config.params (se disponível e populado assim)
-            # Para simplificar e ser mais direto com as versões recentes:
-            # Verificamos se já existe no payload_schema da coleção.
-            # No entanto, a API get_collection pode não popular isso detalhadamente em todas as circunstâncias.
-            # Uma maneira segura é verificar se a *tentativa* de criação falha porque já existe.
-            # Ou, como você fez, que é bom:
-            
-            current_schema = getattr(collection_info.config.params, 'payload_schema', {}) # Acesso mais seguro
-            if not current_schema: # Se payload_schema não existe ou está vazio
-                 # Em algumas versões mais antigas, o payload_schema pode não ser diretamente acessível ou populado como esperado.
-                 # Se a linha acima não funcionar como esperado, pode ser necessário inspecionar `collection_info`
-                 # ou simplesmente tentar criar o índice e tratar uma possível exceção se ele já existir.
-                 # Por exemplo, com `collection_info.payload_schema` como você usou:
+            current_schema = getattr(collection_info.config.params, 'payload_schema', {}) 
+            if not current_schema: 
                  current_schema = collection_info.payload_schema or {}
 
 
@@ -83,14 +72,12 @@ class VectorStoreService:
                 self.client.create_payload_index(
                     collection_name=self.collection_name,
                     field_name=field_name,
-                    field_schema=field_type # Em versões mais recentes, isso pode ser field_type=field_type ou models.PayloadFieldSchema(...)
+                    field_schema=field_type 
                 )
                 print(f"Índice de payload '{field_name}' criado com sucesso.")
             else:
                 print(f"Índice de payload '{field_name}' já existe na coleção '{self.collection_name}'.")
         except Exception as e:
-            # Um erro comum aqui pode ser se o índice já existe e a lógica de verificação não pegou.
-            # Qdrant pode retornar um erro indicando que o índice já existe.
             print(f"Erro/Aviso ao garantir o índice de payload '{field_name}' na coleção '{self.collection_name}': {type(e).__name__} - {e}")
             print("Isso pode ser normal se o índice já existia e a verificação não o detectou precisamente ou se houve outro problema.")
 
@@ -120,32 +107,17 @@ class VectorStoreService:
             for j, (doc, emb) in enumerate(zip(current_batch_docs, current_batch_embeddings)):
                 if emb is None:
                     print(f"Erro: embedding para o documento no índice global {start_index + j} (batch index {j}) é None. Pulando.")
-                    all_successful = False # Marcar que houve um problema
+                    all_successful = False 
                     continue
 
-                # O payload já contém course_id, source, page, e o texto.
-                # **doc.metadata espalha o restante dos metadados do documento LangChain.
                 payload = {
                     "text": doc.page_content,
-                    "course_id": id_course, # Garante que o id_course específico da ingestão seja usado
-                    **doc.metadata # Inclui 'source', 'page' e qualquer outro metadado do Langchain Document
+                    "course_id": id_course, 
+                    **doc.metadata 
                 }
-                # Assegurar que 'source' e 'page' estejam presentes, caso não venham de doc.metadata
                 payload.setdefault('source', 'desconhecido')
                 payload.setdefault('page', -1)
-
-
-                # --- MUDANÇA PRINCIPAL AQUI ---
-                # Gerar um UUID v4 para cada chunk. Isso garante um ID único e válido.
                 point_id = str(uuid.uuid4())
-                # -----------------------------
-
-                # Opcional: Se você precisar rastrear o índice original do chunk dentro do documento
-                # para fins de depuração ou lógica específica, você pode adicioná-lo ao payload:
-                # payload["original_chunk_index_in_doc"] = doc.metadata.get('chunk_index', start_index + j) # Supondo que 'chunk_index' exista ou use o global
-                # payload["original_doc_batch_index"] = start_index + j
-
-
                 points_to_insert.append(
                     PointStruct(
                         id=point_id,
@@ -155,7 +127,6 @@ class VectorStoreService:
                 )
 
             if not points_to_insert:
-                # Isso pode acontecer se todos os embeddings em um lote forem None
                 print(f"Lote {i+1}/{num_batches}: Nenhum ponto válido para inserir. Pulando lote.")
                 continue
 
@@ -163,8 +134,7 @@ class VectorStoreService:
             try:
                 operation_info = self.client.upsert(
                     collection_name=self.collection_name,
-                    wait=True, # Esperar a operação completar é bom para consistência, mas pode ser mais lento.
-                               # Defina como False para maior throughput se a consistência imediata não for crítica.
+                    wait=True,
                     points=points_to_insert
                 )
                 print(f" -> Lote {i+1} Upsert Status: {operation_info.status}")
@@ -175,9 +145,9 @@ class VectorStoreService:
                 print(f"Erro CRÍTICO durante o upsert do Lote {i+1}/{num_batches}: {type(e).__name__} - {e}")
                 # Adicionar mais detalhes do erro se possível, especialmente se for erro do Qdrant
                 if hasattr(e, 'details'):
-                    print(f"   Detalhes do erro: {e.details}") # type: ignore
+                    print(f"   Detalhes do erro: {e.details}") 
                 elif hasattr(e, 'response_content'):
-                    print(f"   Conteúdo da resposta do erro: {e.response_content}") # type: ignore
+                    print(f"   Conteúdo da resposta do erro: {e.response_content}") 
 
                 all_successful = False
         
@@ -189,15 +159,9 @@ class VectorStoreService:
 
     def search(self, query_vector: List[float], limit: int = 3, filter: Optional[models.Filter] = None) -> List[Dict[str, Any]]: # Mudei Dict para models.Filter
         """Busca documentos relevantes no Qdrant, opcionalmente filtrando por course_id."""
-        if not query_vector: # Adicionar verificação para self.vector_size se for usar para validação
+        if not query_vector: 
             print("Erro: Vetor de busca vazio.")
             return []
-        
-        # Opcional: Validar o tamanho do query_vector
-        # if len(query_vector) != self.vector_size:
-        #     print(f"Erro: O tamanho do query_vector ({len(query_vector)}) é diferente do tamanho configurado para a coleção ({self.vector_size}).")
-        #     return []
-
 
         print(f"Buscando {limit} vizinhos mais próximos em '{self.collection_name}' com filtro: {filter}...")
         try:
@@ -211,15 +175,15 @@ class VectorStoreService:
             # Formatar os resultados para serem mais consumíveis
             results = []
             for hit in search_result:
-                payload = hit.payload or {} # Garantir que payload seja um dict mesmo se None
+                payload = hit.payload or {} 
                 results.append({
-                    "id": hit.id, # Pode ser útil retornar o ID do ponto
+                    "id": hit.id, 
                     "text": payload.get("text", ""),
                     "source": payload.get("source", "desconhecido"),
                     "page": payload.get("page", -1),
                     "course_id": payload.get("course_id", "desconhecido"), # Retornar course_id também
                     "score": hit.score,
-                    "metadata": payload # Para ter acesso a todos os outros metadados
+                    "metadata": payload 
                 })
             return results
         except Exception as e:
@@ -240,24 +204,19 @@ class VectorStoreService:
         query_filter = models.Filter(
             must=[
                 models.FieldCondition(
-                    key="course_id", # Certifique-se que 'course_id' está indexado para performance
+                    key="course_id",
                     match=models.MatchValue(value=course_id_filter)
                 )
             ]
         )
 
         all_payloads: List[Dict[str, Any]] = []
-        # O tipo de 'offset' para scroll pode ser um ID de ponto (UUID/int) ou um contador numérico dependendo
-        # da versão do Qdrant e do cliente. Para UUIDs, o offset inicial é None.
         current_offset = offset 
 
         try:
-            # O método scroll pode ser chamado repetidamente com o next_page_offset
             while len(all_payloads) < limit:
-                # Define o limite para a chamada atual do scroll, não excedendo o limite total desejado.
-                # E também não excedendo um limite razoável por chamada (ex: 10-100).
                 scroll_batch_limit = min(100, limit - len(all_payloads))
-                if scroll_batch_limit <= 0: # Já coletamos o suficiente
+                if scroll_batch_limit <= 0:
                     break
 
                 scroll_response_tuple = self.client.scroll(
@@ -268,21 +227,18 @@ class VectorStoreService:
                     with_payload=True,
                     with_vectors=False
                 )
-                # scroll_response é uma tupla: (list_of_points, next_page_offset_id)
                 points = scroll_response_tuple[0]
                 next_page_offset = scroll_response_tuple[1]
 
                 for hit in points:
                     if hit.payload:
-                        # Adicionando o ID do ponto e o course_id ao payload retornado, para consistência
                         payload_to_return = {"id": hit.id, **hit.payload}
                         all_payloads.append(payload_to_return) 
 
-                current_offset = next_page_offset # Atualiza o offset para a próxima iteração
+                current_offset = next_page_offset 
                 
-                if not points or next_page_offset is None: # Não há mais pontos ou não há próxima página
+                if not points or next_page_offset is None:
                     break 
-                # A verificação de len(all_payloads) >= limit é feita no início do loop e pelo scroll_batch_limit
 
             print(f"Busca por scroll para course_id '{course_id_filter}' encontrou {len(all_payloads)} resultados.")
             return all_payloads
