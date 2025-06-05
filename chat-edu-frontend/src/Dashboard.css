@@ -273,3 +273,35 @@
     --border-color: #e0e0e0;
     --text-color: #333333;
   }
+  /* Adicione ao final do seu Dashboard.css */
+
+/* === DASHBOARD SIDEBAR === */
+.nav-separator {
+  margin: 1rem 0;
+  padding: 0 1rem;
+}
+
+.separator-line {
+  height: 1px;
+  background: var(--border-color, #e2e8f0);
+  margin-bottom: 0.5rem;
+}
+
+.course-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  padding: 0.25rem 0;
+}
+
+/* Dark mode para o separador */
+.dark-mode .separator-line {
+  background: var(--border-color-dark, #374151);
+}
+
+.dark-mode .course-name {
+  color: var(--text-secondary-dark, #9ca3af);
+}

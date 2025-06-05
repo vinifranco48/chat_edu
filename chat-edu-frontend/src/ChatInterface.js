@@ -50,7 +50,7 @@ function ChatInterface({ userData, isDarkMode, toggleTheme, onLogout, selectedCo
         },
         body: JSON.stringify({ 
           text: text,
-          courseId: selectedCourse
+          courseId: selectedCourse?.id
         })
       });
 

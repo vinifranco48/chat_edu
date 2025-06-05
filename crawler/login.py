@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*- # Adicionado para garantir codificação correta
-
 import time
 import traceback
 import os

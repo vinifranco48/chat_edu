@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 import sys
 import os
 from config.settings import settings 
+from services.mind_map_service import MindMapService
 
 
 load_dotenv()
@@ -38,6 +39,11 @@ retriever_router = APIRouter(
 flashcards_router = APIRouter(
     prefix="/flashcards",
     tags=["flashcards"]
+)
+
+mindmaps_router = APIRouter(
+    prefix="/mindmaps",
+    tags=["MindMaps"]
 )
 # Variáveis globais para instâncias injetadas
 compiled_graph_instance: Optional[StateGraph] = None 
@@ -236,3 +242,149 @@ async def generate_flashcards(
         print(f"Tipo de Erro: {type(e).__name__}, Mensagem: {str(e)}")
         traceback.print_exc() # Imprime o stack trace completo no console do backend
         raise HTTPException(status_code=500, detail=f"Erro interno ao gerar flashcards: {str(e)}")
+
+
+@mindmaps_router.post("/{id_course}")
+async def generate_mind_map_endpoint(
+    id_course: str,
+    vector_store_svc: Annotated[VectorStoreService, Depends(get_vector_store_service_dependency)],
+    course_name: str = Query(..., description="Nome do curso para contextualizar o mapa mental.")
+):
+    """Endpoint para gerar mapas mentais com debugging aprimorado."""
+    
+    print(f"[ENDPOINT] Iniciando geração de mapa mental - Curso: {id_course}, Nome: {course_name}")
+    
+    try:
+        # 1. Validar configurações
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            print("[ENDPOINT ERROR] GROQ_API_KEY não configurada")
+            raise HTTPException(status_code=500, detail="Configuração do servidor incompleta (API Key).")
+
+        if not hasattr(settings, 'llm_model_name') or not settings.llm_model_name:
+            print("[ENDPOINT ERROR] Model name não configurado")
+            raise HTTPException(status_code=500, detail="Configuração do servidor incompleta (Model Name).")
+
+        print(f"[ENDPOINT] Configurações OK - API Key: {'***' + api_key[-4:] if len(api_key) > 4 else 'presente'}, Model: {settings.llm_model_name}")
+
+        # 2. Verificar se há dados no vector store
+        try:
+            test_docs = vector_store_svc.get_all_by_course_id(id_course)
+            print(f"[ENDPOINT] Vector store contém {len(test_docs)} documentos para o curso {id_course}")
+            
+            if not test_docs:
+                print(f"[ENDPOINT WARNING] Nenhum documento encontrado no vector store para o curso {id_course}")
+                # Retorna estrutura mínima em vez de erro
+                return {
+                    "nodes": [
+                        {
+                            "id": "root",
+                            "type": "input", 
+                            "data": {"label": course_name}
+                        },
+                        {
+                            "id": "empty-notice",
+                            "data": {"label": "Conteúdo não disponível"}
+                        }
+                    ],
+                    "edges": [
+                        {
+                            "id": "edge-root-empty",
+                            "source": "root",
+                            "target": "empty-notice"
+                        }
+                    ]
+                }
+        
+        except Exception as vs_error:
+            print(f"[ENDPOINT ERROR] Erro ao acessar vector store: {vs_error}")
+            raise HTTPException(status_code=500, detail=f"Erro ao acessar base de dados: {str(vs_error)}")
+
+        # 3. Criar serviço e gerar mapa mental
+        mind_map_service_instance = MindMapService(
+            vector_store_service=vector_store_svc,
+            api_key=api_key
+        )
+        
+        print(f"[ENDPOINT] Chamando create_mind_map_structure...")
+        mind_map_data = mind_map_service_instance.create_mind_map_structure(
+            id_course=id_course,
+            course_name=course_name,
+            model=settings.llm_model_name
+        )
+
+        # 4. Validar resultado
+        if not mind_map_data:
+            print("[ENDPOINT ERROR] Serviço retornou dados nulos")
+            raise HTTPException(status_code=500, detail="Falha na geração do mapa mental")
+
+        if not mind_map_data.get("nodes"):
+            print(f"[ENDPOINT WARNING] Nenhum nó gerado para o curso {id_course}")
+            print(f"[ENDPOINT DEBUG] Dados retornados: {mind_map_data}")
+
+        print(f"[ENDPOINT SUCCESS] Mapa mental gerado com {len(mind_map_data.get('nodes', []))} nós e {len(mind_map_data.get('edges', []))} arestas")
+        
+        return mind_map_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ENDPOINT ERROR] Erro inesperado: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro interno ao gerar mapa mental: {str(e)}")
+
+
+# Adicione também este endpoint de debug para testar a conexão
+@mindmaps_router.get("/debug/{id_course}")
+async def debug_mind_map_data(
+    id_course: str,
+    vector_store_svc: Annotated[VectorStoreService, Depends(get_vector_store_service_dependency)]
+):
+    """Endpoint para debug - verifica dados disponíveis para um curso."""
+    
+    try:
+        # Teste 1: Verificar documentos no vector store
+        docs = vector_store_svc.get_all_by_course_id(id_course)
+        
+        debug_info = {
+            "course_id": id_course,
+            "documents_found": len(docs),
+            "groq_api_configured": bool(os.getenv("GROQ_API_KEY")),
+            "model_configured": bool(getattr(settings, 'llm_model_name', None)),
+            "model_name": getattr(settings, 'llm_model_name', 'NOT_SET'),
+            "sample_docs": []
+        }
+        
+        # Adiciona amostras dos primeiros 3 documentos
+        for i, doc in enumerate(docs[:3]):
+            sample = {
+                "index": i,
+                "type": str(type(doc)),
+                "content_preview": str(doc)[:200] + "..." if len(str(doc)) > 200 else str(doc)
+            }
+            
+            # Se for um dicionário, mostra as chaves
+            if isinstance(doc, dict):
+                sample["keys"] = list(doc.keys())
+                if 'text' in doc:
+                    sample["text_length"] = len(doc['text'])
+                if 'page_content' in doc:
+                    sample["page_content_length"] = len(doc['page_content'])
+                    
+            # Se for um objeto Document do LangChain
+            elif hasattr(doc, 'page_content'):
+                sample["page_content_length"] = len(doc.page_content)
+                if hasattr(doc, 'metadata'):
+                    sample["metadata"] = doc.metadata
+                    
+            debug_info["sample_docs"].append(sample)
+        
+        return debug_info
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "error_type": str(type(e)),
+            "course_id": id_course
+        }
