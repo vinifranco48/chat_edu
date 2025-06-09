@@ -13,7 +13,7 @@ from config.settings import settings
 class VectorStoreService:
     def __init__(self, vector_size: int):
         self.collection_name = settings.qdrant_collection_name
-        self.vector_size = vector_size # Guardar para uso potencial, ex: fallback para search
+        self.vector_size = vector_size 
         print(f"Inicializando VectorStoreService para coleção: {self.collection_name}")
 
         if settings.qdrant_mode == "memory":

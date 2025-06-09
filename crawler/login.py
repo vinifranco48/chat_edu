@@ -9,175 +9,97 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.options import Options
 # --- Função de Login (com wait para senha) ---
 def realizar_login(usuario, senha):
-    """Realiza login no EAD Unibalsas."""
-    options = webdriver.ChromeOptions()
-    # Evita mensagens irrelevantes de log do Chrome/ChromeDriver no console
+    """
+    Realiza login no EAD Unibalsas, especificando o local do Chrome
+    e gerenciando o ChromeDriver automaticamente.
+    """
+    options = Options()
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    # Descomente para rodar sem abrir janela gráfica (bom para servidores ou após testes)
-    # options.add_argument('--headless')
-    # Necessário em alguns sistemas Linux/Docker, geralmente inofensivo em Windows
-    options.add_argument('--disable-gpu')
-    # Necessário em alguns sistemas Linux/Docker para evitar problemas de sandbox
+    #options.add_argument('--headless')
     options.add_argument('--no-sandbox')
-    # Necessário em alguns sistemas Linux/Docker para evitar crash por falta de memória compartilhada
     options.add_argument('--disable-dev-shm-usage')
-    # Define um User-Agent para parecer um navegador comum
-    options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36') # Pode atualizar a versão se quiser
-    options.add_argument('--headless')
-    driver = None
-    service = None
-    try:
-        print("Inicializando o WebDriver...")
-        
-        # CORREÇÃO: Usar o ChromeDriver instalado localmente em vez de webdriver-manager
-        print("   - Tentando utilizar ChromeDriver do sistema...")
-        
-        # Opção 1: Tentar encontrar ChromeDriver no PATH (se já instalado)
-        try:
-            service = Service()  # Sem caminho, assume que chromedriver está no PATH
-            print("   - Usando ChromeDriver do PATH do sistema")
-        except Exception as e_path:
-            print(f"   - ChromeDriver não encontrado no PATH: {e_path}")
-            
-            # Opção 2: Especificar o caminho para o ChromeDriver manualmente
-            # Substitua o caminho abaixo pelo local onde você instalou o ChromeDriver
-            chromedriver_path = './chromedriver'  # Para Linux/Mac
-            # chromedriver_path = './chromedriver.exe'  # Para Windows
-            
-            if os.path.exists(chromedriver_path):
-                print(f"   - Usando ChromeDriver do caminho: {chromedriver_path}")
-                service = Service(executable_path=chromedriver_path)
-            else:
-                print(f"   - ERRO: ChromeDriver não encontrado em {chromedriver_path}")
-                print("   - Por favor, instale o ChromeDriver manualmente e coloque no diretório correto.")
-                print("   - Download: https://chromedriver.chromium.org/downloads")
-                return None  # Falha crítica
-        
-        print(f"   - Service criado. Path do ChromeDriver: {service.path if hasattr(service, 'path') else 'Default'}")
+    options.add_argument('--disable-gpu')
+    options.binary_location = r"C:\chrome-win64\chrome.exe"
 
-        # 2. Inicializa o WebDriver do Chrome com o serviço e opções
+    driver = None
+    try:
+        print("🚀 Inicializando o WebDriver...")
+        print(f"   - Usando binário do Chrome em: {options.binary_location}")
+        service = Service(ChromeDriverManager().install())
+        
         print("   - Inicializando webdriver.Chrome...")
         driver = webdriver.Chrome(service=service, options=options)
-        driver.maximize_window() # Maximiza para garantir visibilidade dos elementos
-        print("   - WebDriver inicializado com sucesso.")
+        driver.maximize_window()
+        print("✅ WebDriver inicializado com sucesso.")
 
     except Exception as e_init:
-        # Captura qualquer outra exceção durante a inicialização
-        print(f"Erro Crítico: Não foi possível inicializar o Chrome/WebDriver: {str(e_init)}")
-        print("   - Verifique se o Google Chrome está instalado corretamente.")
-        print("   - Verifique se há conflito com antivírus/firewall.")
-        print("   - Verifique se a versão do ChromeDriver é compatível com seu Chrome.")
+        print(f"❌ Erro Crítico: Não foi possível inicializar o Chrome/WebDriver: {str(e_init)}")
         traceback.print_exc()
-        if driver: # Tenta fechar se chegou a criar parcialmente
-             try: driver.quit()
-             except: pass
-        return None # Falha crítica
+        return None
 
-    # --- Processo de Login ---
+    # --- LÓGICA DE LOGIN (Sua lógica robusta original) ---
     try:
         login_url = 'https://ead.unibalsas.edu.br/login/index.php'
         print(f"Acessando a página de login: {login_url}")
         driver.get(login_url)
 
-        # Espera e preenche usuário
         print("Aguardando campo de usuário (ID: username)...")
         usuario_input = WebDriverWait(driver, 20).until(
             EC.visibility_of_element_located((By.ID, "username"))
         )
-        print("   - Campo de usuário encontrado.")
-        usuario_input.clear() # Limpa caso haja algo preenchido
+        usuario_input.clear()
         usuario_input.send_keys(usuario)
         print("   - Usuário inserido.")
 
-        # Espera e preenche senha (Adicionado WebDriverWait)
         print("Aguardando campo de senha (ID: password)...")
         senha_input = WebDriverWait(driver, 10).until(
-             EC.visibility_of_element_located((By.ID, "password"))
+            EC.visibility_of_element_located((By.ID, "password"))
         )
-        print("   - Campo de senha encontrado.")
         senha_input.clear()
         senha_input.send_keys(senha)
         print("   - Senha inserida.")
 
-        # Espera e clica no botão de login
         print("Aguardando botão de login (ID: loginbtn)...")
         botao_login = WebDriverWait(driver, 10).until(
-             EC.element_to_be_clickable((By.ID, "loginbtn"))
+            EC.element_to_be_clickable((By.ID, "loginbtn"))
         )
-        print("   - Botão de login pronto. Clicando...")
         botao_login.click()
         print("   - Botão de login clicado.")
 
-        # Aguarda confirmação de login (lógica robusta mantida)
-        print("Aguardando confirmação de login (redirecionamento ou elemento do painel)...")
-        try:
-            WebDriverWait(driver, 25).until(
-                EC.any_of(
-                    EC.url_contains('/my/'), # URL do painel Moodle
-                    EC.url_changes(login_url), # Garante que a URL mudou da pág de login
-                    EC.presence_of_element_located((By.ID, "nav-drawer")), # Elemento comum pós-login
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='main']")), # Conteúdo principal
-                    EC.presence_of_element_located((By.LINK_TEXT, "Painel")) # Link para o Painel
-                )
+        print("Aguardando confirmação de login...")
+        WebDriverWait(driver, 25).until(
+            EC.any_of(
+                EC.url_contains('/my/'),
+                EC.presence_of_element_located((By.ID, "nav-drawer"))
             )
-            print("   - Confirmação de login detectada (URL mudou ou elemento do painel apareceu).")
-        except TimeoutException:
-            # Se o timeout ocorreu, pode ser que o login falhou ou a página pós-login é inesperada
-            print("   - Alerta: Timeout esperando confirmação de login padrão. Verificando URL atual para determinar status...")
-            pass # Continua para verificar a URL
+        )
+        print("   - Confirmação de login detectada.")
 
-        # Verifica se ainda está na página de login (indicando falha)
-        time.sleep(1) # Pequena pausa para garantir que a URL esteja estável
-        current_url = driver.current_url
-        print(f"   - URL atual após tentativa de login: {current_url}")
-
-        if "login/index.php" in current_url:
-            print("   - ERRO DE LOGIN: Ainda na página de login.")
+        # Verificação final para garantir que não estamos na página de login
+        if "login/index.php" in driver.current_url:
+            print("   - ERRO DE LOGIN: Credenciais inválidas ou falha inesperada.")
             try:
-                # Tenta encontrar mensagem de erro específica
-                erro_login = WebDriverWait(driver, 5).until(
-                    EC.visibility_of_element_located((By.CSS_SELECTOR, ".loginerrors .error, div[data-login-failure], .alert-danger"))
-                )
-                print(f"   - Mensagem de erro encontrada: {erro_login.text.strip()}")
-            except TimeoutException:
-                print("   - Nenhuma mensagem de erro explícita encontrada, mas o login falhou.")
-            finally:
-                 # Salva screenshot e fecha o driver em caso de falha
-                if driver:
-                    try:
-                        screenshot_path = "erro_login_final.png"
-                        driver.save_screenshot(screenshot_path)
-                        print(f"   - Screenshot da falha salvo em: {screenshot_path}")
-                    except Exception as e_ss:
-                        print(f"   - Aviso: Falha ao salvar screenshot de erro: {e_ss}")
-                    driver.quit()
-                return None # Falha no login
+                erro_msg = driver.find_element(By.CSS_SELECTOR, ".loginerrors .error, div[data-login-failure]").text
+                print(f"   - Mensagem de erro do site: {erro_msg}")
+            except NoSuchElementException:
+                print("   - Nenhuma mensagem de erro específica encontrada.")
+            driver.save_screenshot("erro_login_final.png")
+            return None
 
         print("Login realizado com sucesso!")
-        return driver # Retorna a instância do driver logado
+        return driver
 
-    except TimeoutException as e_timeout:
-        print(f"Erro de Timeout durante o processo de login: Um elemento esperado não apareceu a tempo. {str(e_timeout)}")
-        traceback.print_exc()
-    except NoSuchElementException as e_no_element:
-        print(f"Erro: Elemento não encontrado durante o login: {str(e_no_element)}")
-        traceback.print_exc()
     except Exception as e_login:
-        print(f"Erro inesperado durante o processo de login: {str(e_login)}")
+        print(f"❌ Erro inesperado durante o processo de login: {str(e_login)}")
         traceback.print_exc()
+        if driver:
+            driver.save_screenshot("erro_durante_login.png")
+        return None
 
-    # Se chegou aqui por causa de uma exceção no bloco try do login, fecha o driver
-    if driver:
-        try:
-            screenshot_path = "erro_durante_login.png"
-            driver.save_screenshot(screenshot_path)
-            print(f"   - Screenshot do erro salvo em: {screenshot_path}")
-        except Exception as e_ss:
-            print(f"   - Aviso: Falha ao salvar screenshot de erro: {e_ss}")
-        driver.quit()
-    return None
 
 
 # --- Função para Coletar IDs/URLs e depois visitar cada página (Mantida como estava, já robusta) ---

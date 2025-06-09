@@ -1,0 +1,60 @@
+# docker-compose.yml
+version: '3.9'
+
+services:
+  # Serviço 1: Frontend (React + Nginx)
+  # O Docker vai procurar o Dockerfile dentro da pasta ./chat-edu-frontend
+  frontend:
+    container_name: chatedu_frontend
+    build:
+      context: ./chat-edu-frontend
+    ports:
+      - "3000:80" # Acesse a aplicação em http://localhost:3000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Serviço 2: Backend (Aplicação Python/FastAPI)
+  # O Docker vai procurar o Dockerfile na raiz do projeto (./)
+  backend:
+    container_name: chatedu_backend
+    build:
+      context: .  # <<< ESTA É A MUDANÇA PRINCIPAL
+    env_file:
+      - .env # Carrega todas as variáveis de ambiente
+    volumes:
+      # Mapeia as pastas locais para dentro do contêiner
+      - ./data:/app/data
+      - ./embedding_cache:/app/embedding_cache # <<< VOLUME ADICIONADO PARA O CACHE
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres_db:
+        condition: service_healthy # Espera o PostgreSQL estar pronto
+    restart: unless-stopped
+
+  # Serviço 3: Banco de Dados PostgreSQL
+  postgres_db:
+    container_name: chatedu_postgres
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+# Definição dos volumes para persistência dos dados
+volumes:
+  postgres_data:
+    driver: local

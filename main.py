@@ -5,8 +5,6 @@ import os
 import traceback
 import time
 from pathlib import Path
-
-# --- Carregamento das Configurações ---
 try:
     from config.settings import settings
 except Exception as config_error:
@@ -14,9 +12,8 @@ except Exception as config_error:
     print(f"Erro: {config_error}")
     traceback.print_exc()
     print("Verifique config/settings.py e .env. A aplicação será encerrada.")
-    exit(1) #NOSONAR
+    exit(1) 
 
-# --- Importação dos Serviços e Componentes ---
 from services.embedding_service import EmbeddingService
 from services.vector_store_service import VectorStoreService
 from services.llm_service import LLMService
