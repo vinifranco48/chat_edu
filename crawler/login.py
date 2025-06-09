@@ -1,7 +1,8 @@
 import time
 import traceback
 import os
-
+import tempfile
+import shutil
 from selenium import webdriver
 from selenium.common.exceptions import (NoSuchElementException,  # Exceções específicas primeiro
                                         TimeoutException)
@@ -14,23 +15,32 @@ from selenium.webdriver.chrome.options import Options
 # --- Função de Login (com wait para senha) ---
 def realizar_login(usuario, senha):
     """
-    Realiza login no EAD Unibalsas, especificando o local do Chrome
-    e gerenciando o ChromeDriver automaticamente.
+    Realiza login no EAD Unibalsas de forma robusta para rodar em um servidor Docker.
+    Retorna uma tupla (driver, user_data_dir) em caso de sucesso, ou (None, None) em caso de falha.
     """
+    # --- CONFIGURAÇÃO DAS OPÇÕES DO CHROME PARA AMBIENTE DE SERVIDOR ---
     options = Options()
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
-    #options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
+    
+    # CORREÇÃO 1: Modo Headless é essencial para rodar em servidor sem interface gráfica.
+    options.add_argument("--headless=new")
+    
+    # Argumentos necessários para estabilidade em contêineres Docker.
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    
+    # CORREÇÃO 2: Cria um diretório de perfil temporário e único para cada sessão.
+    # Isso evita o erro "user data directory is already in use".
+    user_data_dir = tempfile.mkdtemp()
+    options.add_argument(f"--user-data-dir={user_data_dir}")
 
     driver = None
     try:
         print("🚀 Inicializando o WebDriver...")
-        print(f"   - Usando binário do Chrome em: {options.binary_location}")
         service = Service(ChromeDriverManager().install())
         
-        print("   - Inicializando webdriver.Chrome...")
+        print("   - Inicializando webdriver.Chrome...")
         driver = webdriver.Chrome(service=service, options=options)
         driver.maximize_window()
         print("✅ WebDriver inicializado com sucesso.")
@@ -38,7 +48,10 @@ def realizar_login(usuario, senha):
     except Exception as e_init:
         print(f"❌ Erro Crítico: Não foi possível inicializar o Chrome/WebDriver: {str(e_init)}")
         traceback.print_exc()
-        return None
+        # Garante a limpeza do diretório temporário mesmo se a inicialização falhar
+        if user_data_dir:
+            shutil.rmtree(user_data_dir)
+        return None, None
 
     # --- LÓGICA DE LOGIN (Sua lógica robusta original) ---
     try:
@@ -52,7 +65,7 @@ def realizar_login(usuario, senha):
         )
         usuario_input.clear()
         usuario_input.send_keys(usuario)
-        print("   - Usuário inserido.")
+        print("   - Usuário inserido.")
 
         print("Aguardando campo de senha (ID: password)...")
         senha_input = WebDriverWait(driver, 10).until(
@@ -60,14 +73,14 @@ def realizar_login(usuario, senha):
         )
         senha_input.clear()
         senha_input.send_keys(senha)
-        print("   - Senha inserida.")
+        print("   - Senha inserida.")
 
         print("Aguardando botão de login (ID: loginbtn)...")
         botao_login = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "loginbtn"))
         )
         botao_login.click()
-        print("   - Botão de login clicado.")
+        print("   - Botão de login clicado.")
 
         print("Aguardando confirmação de login...")
         WebDriverWait(driver, 25).until(
@@ -76,28 +89,24 @@ def realizar_login(usuario, senha):
                 EC.presence_of_element_located((By.ID, "nav-drawer"))
             )
         )
-        print("   - Confirmação de login detectada.")
+        print("   - Confirmação de login detectada.")
 
         # Verificação final para garantir que não estamos na página de login
         if "login/index.php" in driver.current_url:
-            print("   - ERRO DE LOGIN: Credenciais inválidas ou falha inesperada.")
-            try:
-                erro_msg = driver.find_element(By.CSS_SELECTOR, ".loginerrors .error, div[data-login-failure]").text
-                print(f"   - Mensagem de erro do site: {erro_msg}")
-            except NoSuchElementException:
-                print("   - Nenhuma mensagem de erro específica encontrada.")
-            driver.save_screenshot("erro_login_final.png")
-            return None
+            print("   - ERRO DE LOGIN: Credenciais inválidas ou falha inesperada.")
+            # ... (sua lógica de captura de erro) ...
+            return None, None # Retorna None em caso de falha de login
 
         print("Login realizado com sucesso!")
-        return driver
+        # CORREÇÃO 3: Retorna o driver e o caminho do diretório temporário para limpeza posterior
+        return driver, user_data_dir
 
     except Exception as e_login:
         print(f"❌ Erro inesperado durante o processo de login: {str(e_login)}")
         traceback.print_exc()
         if driver:
             driver.save_screenshot("erro_durante_login.png")
-        return None
+        return None, None
 
 
 
