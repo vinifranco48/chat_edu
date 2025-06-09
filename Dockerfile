@@ -4,9 +4,9 @@ FROM python:3.11-slim
 # Defina o diretório de trabalho dentro do contêiner
 WORKDIR /app
 
-# --- CORREÇÃO CRÍTICA ---
-# Instala as dependências de sistema necessárias para o Chrome/WebDriver funcionar
-# em modo headless dentro de um ambiente Linux mínimo.
+# --- ATUALIZAÇÃO CRÍTICA ---
+
+# 1. Instala as dependências de sistema para o WebDriver
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -22,15 +22,20 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libxrender1 \
     libdbus-1-3 \
-    --no-install-recommends && \
+    --no-install-recommends
+
+# 2. Baixa e instala o navegador Google Chrome
+RUN wget -q -O google-chrome-stable_current_amd64.deb "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" && \
+    apt-get install -y ./google-chrome-stable_current_amd64.deb && \
+    rm -f google-chrome-stable_current_amd64.deb && \
     rm -rf /var/lib/apt/lists/*
+
+# ---------------------------
 
 # Copia o arquivo de definição do projeto
 COPY pyproject.toml .
 
 # Atualiza o pip e instala as dependências do Python
-# Isso aproveita o cache do Docker: as dependências só são reinstaladas
-# se o arquivo pyproject.toml mudar.
 RUN pip install --upgrade pip
 RUN pip install .
 
@@ -40,7 +45,5 @@ COPY . .
 # Exponha a porta 8000, onde a aplicação vai rodar
 EXPOSE 8000
 
-# --- CORREÇÃO DE PRODUÇÃO ---
-# Defina o comando para iniciar sua aplicação.
-# A flag "--reload" foi removida, pois ela é para desenvolvimento e não para produção.
+# Defina o comando para iniciar sua aplicação
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
