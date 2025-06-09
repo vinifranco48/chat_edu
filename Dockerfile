@@ -1,23 +1,25 @@
-FROM python:3.11-slim
+# Use a imagem base do Python 3.11
+FROM python:3.11
 
+# Defina o diretório de trabalho
 WORKDIR /app
 
-# Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Instale quaisquer dependências de sistema, se necessário
+# RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements.txt primeiro para aproveitar cache do Docker
-COPY requirements.txt .
+# Copie apenas o arquivo pyproject.toml para aproveitar o cache do Docker
+COPY pyproject.toml .
 
-# Instalar dependências Python
-RUN pip install --no-cache-dir -r requirements.txt
+# Atualize o pip e instale as dependências diretamente do pyproject.toml
+# O comando "pip install ." lê o pyproject.toml e instala tudo na seção [project.dependencies]
+RUN pip install --upgrade pip
+RUN pip install .
 
-# Copiar código da aplicação
+# Copie o restante do código da sua aplicação
 COPY . .
 
-# Expor porta
+# Exponha a porta que sua aplicação usará
 EXPOSE 8000
 
-# Comando para executar a aplicação
+# Defina o comando para iniciar sua aplicação com uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
