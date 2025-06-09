@@ -3,6 +3,7 @@ import traceback
 import os
 import tempfile
 import shutil
+import atexit
 from selenium import webdriver
 from selenium.common.exceptions import (NoSuchElementException,  # Exceções específicas primeiro
                                         TimeoutException)
@@ -13,11 +14,32 @@ from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 # --- Função de Login (com wait para senha) ---
+_temp_dirs_to_cleanup = []
+
+def _cleanup_temp_dirs():
+    """Função para limpar diretórios temporários na saída do programa"""
+    global _temp_dirs_to_cleanup
+    for temp_dir in _temp_dirs_to_cleanup:
+        try:
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+                print(f"Diretório temporário limpo: {temp_dir}")
+        except Exception as e:
+            print(f"Erro ao limpar diretório {temp_dir}: {e}")
+
+# Registra a função de limpeza para ser executada na saída do programa
+atexit.register(_cleanup_temp_dirs)
+
 def realizar_login(usuario, senha):
     """
     Realiza login no EAD Unibalsas de forma robusta para rodar em um servidor Docker.
-    Retorna uma tupla (driver, user_data_dir) em caso de sucesso, ou (None, None) em caso de falha.
+    
+    Retorna:
+        webdriver.Chrome: Driver do Chrome em caso de sucesso
+        None: Em caso de falha
     """
+    global _temp_dirs_to_cleanup
+    
     # --- CONFIGURAÇÃO DAS OPÇÕES DO CHROME PARA AMBIENTE DE SERVIDOR ---
     options = Options()
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
@@ -34,13 +56,16 @@ def realizar_login(usuario, senha):
     # Isso evita o erro "user data directory is already in use".
     user_data_dir = tempfile.mkdtemp()
     options.add_argument(f"--user-data-dir={user_data_dir}")
+    
+    # Adiciona o diretório à lista de limpeza automática
+    _temp_dirs_to_cleanup.append(user_data_dir)
 
     driver = None
     try:
         print("🚀 Inicializando o WebDriver...")
         service = Service(ChromeDriverManager().install())
         
-        print("   - Inicializando webdriver.Chrome...")
+        print("   - Inicializando webdriver.Chrome...")
         driver = webdriver.Chrome(service=service, options=options)
         driver.maximize_window()
         print("✅ WebDriver inicializado com sucesso.")
@@ -48,12 +73,16 @@ def realizar_login(usuario, senha):
     except Exception as e_init:
         print(f"❌ Erro Crítico: Não foi possível inicializar o Chrome/WebDriver: {str(e_init)}")
         traceback.print_exc()
-        # Garante a limpeza do diretório temporário mesmo se a inicialização falhar
-        if user_data_dir:
+        # Remove o diretório da lista e limpa imediatamente em caso de falha
+        if user_data_dir in _temp_dirs_to_cleanup:
+            _temp_dirs_to_cleanup.remove(user_data_dir)
+        try:
             shutil.rmtree(user_data_dir)
-        return None, None
+        except:
+            pass
+        return None
 
-    # --- LÓGICA DE LOGIN (Sua lógica robusta original) ---
+    # --- LÓGICA DE LOGIN ---
     try:
         login_url = 'https://ead.unibalsas.edu.br/login/index.php'
         print(f"Acessando a página de login: {login_url}")
@@ -65,7 +94,7 @@ def realizar_login(usuario, senha):
         )
         usuario_input.clear()
         usuario_input.send_keys(usuario)
-        print("   - Usuário inserido.")
+        print("   - Usuário inserido.")
 
         print("Aguardando campo de senha (ID: password)...")
         senha_input = WebDriverWait(driver, 10).until(
@@ -73,14 +102,14 @@ def realizar_login(usuario, senha):
         )
         senha_input.clear()
         senha_input.send_keys(senha)
-        print("   - Senha inserida.")
+        print("   - Senha inserida.")
 
         print("Aguardando botão de login (ID: loginbtn)...")
         botao_login = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, "loginbtn"))
         )
         botao_login.click()
-        print("   - Botão de login clicado.")
+        print("   - Botão de login clicado.")
 
         print("Aguardando confirmação de login...")
         WebDriverWait(driver, 25).until(
@@ -89,25 +118,59 @@ def realizar_login(usuario, senha):
                 EC.presence_of_element_located((By.ID, "nav-drawer"))
             )
         )
-        print("   - Confirmação de login detectada.")
+        print("   - Confirmação de login detectada.")
 
         # Verificação final para garantir que não estamos na página de login
         if "login/index.php" in driver.current_url:
-            print("   - ERRO DE LOGIN: Credenciais inválidas ou falha inesperada.")
-            # ... (sua lógica de captura de erro) ...
-            return None, None # Retorna None em caso de falha de login
+            print("   - ERRO DE LOGIN: Credenciais inválidas ou falha inesperada.")
+            # Fecha o driver e limpa recursos
+            driver.quit()
+            return None
 
         print("Login realizado com sucesso!")
-        # CORREÇÃO 3: Retorna o driver e o caminho do diretório temporário para limpeza posterior
-        return driver, user_data_dir
+        
+        # NOVO: Adiciona um atributo personalizado ao driver para rastrear seu diretório temp
+        driver._temp_user_data_dir = user_data_dir
+        
+        return driver  # ✅ Retorna apenas o driver
 
     except Exception as e_login:
         print(f"❌ Erro inesperado durante o processo de login: {str(e_login)}")
         traceback.print_exc()
         if driver:
-            driver.save_screenshot("erro_durante_login.png")
-        return None, None
+            try:
+                driver.save_screenshot("erro_durante_login.png")
+            except:
+                pass
+            driver.quit()
+        return None
 
+def fechar_driver_com_limpeza(driver):
+    """
+    Função auxiliar para fechar o driver e limpar o diretório temporário associado.
+    """
+    global _temp_dirs_to_cleanup
+    
+    if driver is None:
+        return
+    
+    # Pega o diretório temporário se foi armazenado no driver
+    temp_dir = getattr(driver, '_temp_user_data_dir', None)
+    
+    try:
+        driver.quit()
+        print("Driver fechado com sucesso.")
+    except Exception as e:
+        print(f"Erro ao fechar driver: {e}")
+    
+    # Limpa o diretório temporário imediatamente
+    if temp_dir and temp_dir in _temp_dirs_to_cleanup:
+        _temp_dirs_to_cleanup.remove(temp_dir)
+        try:
+            shutil.rmtree(temp_dir)
+            print(f"Diretório temporário limpo: {temp_dir}")
+        except Exception as e:
+            print(f"Erro ao limpar diretório temporário {temp_dir}: {e}")
 
 
 # --- Função para Coletar IDs/URLs e depois visitar cada página (Mantida como estava, já robusta) ---
