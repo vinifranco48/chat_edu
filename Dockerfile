@@ -1,25 +1,46 @@
-# Use a imagem base do Python 3.11
-FROM python:3.11
+# Use a imagem base do Python 3.11, a versão 'slim' é menor e mais eficiente
+FROM python:3.11-slim
 
-# Defina o diretório de trabalho
+# Defina o diretório de trabalho dentro do contêiner
 WORKDIR /app
 
-# Instale quaisquer dependências de sistema, se necessário
-# RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# --- CORREÇÃO CRÍTICA ---
+# Instala as dependências de sistema necessárias para o Chrome/WebDriver funcionar
+# em modo headless dentro de um ambiente Linux mínimo.
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    libglib2.0-0 \
+    libnss3 \
+    libgconf-2-4 \
+    libfontconfig1 \
+    libx11-6 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libsm6 \
+    libxrandr2 \
+    libxrender1 \
+    libdbus-1-3 \
+    --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copie apenas o arquivo pyproject.toml para aproveitar o cache do Docker
+# Copia o arquivo de definição do projeto
 COPY pyproject.toml .
 
-# Atualize o pip e instale as dependências diretamente do pyproject.toml
-# O comando "pip install ." lê o pyproject.toml e instala tudo na seção [project.dependencies]
+# Atualiza o pip e instala as dependências do Python
+# Isso aproveita o cache do Docker: as dependências só são reinstaladas
+# se o arquivo pyproject.toml mudar.
 RUN pip install --upgrade pip
 RUN pip install .
 
-# Copie o restante do código da sua aplicação
+# Agora, copie o restante do código da sua aplicação
 COPY . .
 
-# Exponha a porta que sua aplicação usará
+# Exponha a porta 8000, onde a aplicação vai rodar
 EXPOSE 8000
 
-# Defina o comando para iniciar sua aplicação com uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# --- CORREÇÃO DE PRODUÇÃO ---
+# Defina o comando para iniciar sua aplicação.
+# A flag "--reload" foi removida, pois ela é para desenvolvimento e não para produção.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

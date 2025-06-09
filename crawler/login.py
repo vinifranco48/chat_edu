@@ -23,7 +23,6 @@ def realizar_login(usuario, senha):
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
-    options.binary_location = r"C:\chrome-win64\chrome.exe"
 
     driver = None
     try:
