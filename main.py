@@ -5,6 +5,9 @@ import os
 import traceback
 import time
 from pathlib import Path
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from config.settings import settings
 except Exception as config_error:
@@ -24,8 +27,7 @@ from api.routes import (
     auth_router,
     retriever_router,
     flashcards_router,
-    mindmaps_router,
-    root_router,  # ADICIONADO - importar o root_router
+    mindmaps_router, 
     set_compiled_graph,
     set_vector_store_service
 )
@@ -143,8 +145,7 @@ try:
     # --- Inclusão dos Routers ---
     print("Registrando rotas...")
     
-    # INCLUIR O ROOT_ROUTER PRIMEIRO (IMPORTANTE!)
-    app.include_router(root_router)
+    # INCLU
     print("Rota raiz (/) registrada.")
     
     # Depois incluir as outras rotas
