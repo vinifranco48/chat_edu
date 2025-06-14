@@ -71,7 +71,7 @@ def get_vector_store_service_dependency() -> VectorStoreService:
     return _vector_store_service_instance
 
 
-@router.post("/", response_model=QueryResponse)
+@router.post("", response_model=QueryResponse)
 async def handle_chat_query(
     request: QueryRequest,
     graph: Annotated[StateGraph, Depends(get_compiled_graph)]
