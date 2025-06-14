@@ -24,7 +24,8 @@ from api.routes import (
     auth_router,
     retriever_router,
     flashcards_router,
-    mindmaps_router,  
+    mindmaps_router,
+    root_router,  # ADICIONADO - importar o root_router
     set_compiled_graph,
     set_vector_store_service
 )
@@ -141,6 +142,12 @@ try:
 
     # --- Inclusão dos Routers ---
     print("Registrando rotas...")
+    
+    # INCLUIR O ROOT_ROUTER PRIMEIRO (IMPORTANTE!)
+    app.include_router(root_router)
+    print("Rota raiz (/) registrada.")
+    
+    # Depois incluir as outras rotas
     app.include_router(auth_router)
     app.include_router(chat_router)
     app.include_router(retriever_router)
@@ -148,14 +155,14 @@ try:
     app.include_router(mindmaps_router) 
     print("Rotas de autenticação, chat, retriever, flashcards e mapas mentais registradas.")
 
-    #Imprimir todas as rotas registradas para verificação
-    # print("\n--- Rotas Registradas na Aplicação ---")
-    # for route in app.routes:
-    # if hasattr(route, "methods"):
-    # print(f"Path: {route.path}, Methods: {route.methods}, Name: {route.name}")
-    # else:
-    # print(f"Path: {route.path}, Name: {route.name}")
-    # print("-------------------------------------\n")
+    # Imprimir todas as rotas registradas para verificação
+    print("\n--- Rotas Registradas na Aplicação ---")
+    for route in app.routes:
+        if hasattr(route, "methods") and hasattr(route, "path"):
+            print(f"Path: {route.path}, Methods: {list(route.methods)}, Name: {getattr(route, 'name', 'N/A')}")
+        elif hasattr(route, "path"):
+            print(f"Path: {route.path}, Name: {getattr(route, 'name', 'N/A')}")
+    print("-------------------------------------\n")
 
     print("--- Aplicação Chat Edu pronta para iniciar ---")
 
