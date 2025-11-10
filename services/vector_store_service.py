@@ -22,10 +22,9 @@ class VectorStoreService:
         elif settings.qdrant_mode == "url":
             print(f"Conectando ao Qdrant em {settings.qdrant_url}")
             self.client = QdrantClient(
-                host=settings.qdrant_url, # Em versões mais recentes, pode ser 'url='
+                url=settings.qdrant_url,  # Use 'url' para URLs completas com protocolo https://
                 api_key=settings.qdrant_api_key,
-                # Considere adicionar um timeout, ex: timeout=20 (em segundos)
-                # timeout=settings.qdrant_timeout or 20
+                timeout=20  # Timeout em segundos
             )
         else:
             raise ValueError(f"Modo qdrant inválido {settings.qdrant_mode}.")
@@ -42,8 +41,13 @@ class VectorStoreService:
             self.client.get_collection(collection_name=self.collection_name)
             print(f"Coleção '{self.collection_name}' já existe. Usando a existente.")
         except Exception as e:
-            # Em qdrant-client >= 1.1.1, um erro específico pode ser qdrant_client.http.exceptions.UnexpectedResponseError
-            # ou um genérico se a conexão falhar.
+            error_message = str(e)
+            # Se for erro 403 (Forbidden), assumir que a coleção existe mas não temos permissão para get_collection
+            if "403" in error_message or "Forbidden" in error_message or "forbidden" in error_message:
+                print(f"Aviso: Erro 403 ao verificar coleção. Assumindo que '{self.collection_name}' já existe (permissões limitadas da API key).")
+                return
+            
+            # Para outros erros, tentar criar a coleção
             print(f"Coleção '{self.collection_name}' não encontrada ou erro ao acessá-la. Tentando criar... Erro original: {type(e).__name__} - {e}")
             try:
                 self.client.create_collection(
@@ -55,6 +59,11 @@ class VectorStoreService:
                 )
                 print(f"Coleção '{self.collection_name}' criada com sucesso.")
             except Exception as create_e:
+                create_error_message = str(create_e)
+                # Se também der 403 ao criar, assumir que já existe
+                if "403" in create_error_message or "Forbidden" in create_error_message or "forbidden" in create_error_message:
+                    print(f"Aviso: Erro 403 ao criar coleção. Assumindo que '{self.collection_name}' já existe (permissões limitadas da API key).")
+                    return
                 print(f"Erro CRÍTICO ao TENTAR CRIAR a coleção '{self.collection_name}': {type(create_e).__name__} - {create_e}")
                 raise RuntimeError(f"Falha ao garantir a existência/criação da coleção '{self.collection_name}': {create_e}")
 

@@ -127,8 +127,8 @@ async def handle_chat_query(
 
 
 
-@auth_router.post("/")
-async def login(username: str, password: str):
+@auth_router.post("/", response_model=dict)
+async def login(username: str = Query(...), password: str = Query(...)):
     """ Realiza login no site e retorna os cursos disponíveis. """
     driver = None
     cursos_processados = []
