@@ -1,0 +1,39 @@
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { LogOut, GraduationCap } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+export const Header = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  return (
+    <header className="border-b bg-card shadow-sm sticky top-0 z-50">
+      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+            <GraduationCap className="w-6 h-6 text-primary-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Chat Edu
+          </h1>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-muted-foreground">
+            {user?.username}
+          </span>
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Sair
+          </Button>
+        </div>
+      </div>
+    </header>
+  );
+};
