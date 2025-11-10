@@ -1,70 +1,135 @@
-# Getting Started with Create React App
+# Chat Edu Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Frontend do sistema Chat Edu - Assistente educacional com IA.
 
-## Available Scripts
+## 🚀 Tecnologias
 
-In the project directory, you can run:
+- React 18 + TypeScript
+- Vite (build tool)
+- React Router (navegação)
+- TanStack Query (gerenciamento de estado)
+- Shadcn/ui + Radix UI (componentes)
+- Tailwind CSS (estilização)
 
-### `npm start`
+## 📋 Pré-requisitos
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Node.js 18+ ou Bun
+- Backend rodando em `http://localhost:8000`
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 🔧 Instalação
 
-### `npm test`
+1. Clone o repositório e navegue até a pasta do frontend:
+```bash
+cd chat-edu-frontend
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+2. Instale as dependências:
+```bash
+npm install
+# ou
+bun install
+```
 
-### `npm run build`
+3. Configure as variáveis de ambiente:
+```bash
+cp .env.example .env
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Edite o arquivo `.env` se necessário:
+```env
+VITE_API_URL=http://localhost:8000
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 🏃 Executando
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Modo Desenvolvimento
+```bash
+npm run dev
+# ou
+bun dev
+```
 
-### `npm run eject`
+O frontend estará disponível em `http://localhost:8080`
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Build para Produção
+```bash
+npm run build
+# ou
+bun run build
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Preview da Build
+```bash
+npm run preview
+# ou
+bun preview
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 📁 Estrutura do Projeto
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```
+src/
+├── components/
+│   ├── auth/          # Componentes de autenticação
+│   ├── chat/          # Componentes do chat
+│   ├── flashcards/    # Componentes de flashcards
+│   ├── layout/        # Header, Sidebar
+│   └── ui/            # Componentes UI (Shadcn)
+├── contexts/
+│   ├── AuthContext.tsx    # Gerenciamento de autenticação
+│   └── CourseContext.tsx  # Gerenciamento de curso selecionado
+├── pages/
+│   ├── Login.tsx      # Página de login
+│   ├── Dashboard.tsx  # Página principal
+│   └── NotFound.tsx   # Página 404
+├── services/
+│   └── api.ts         # Chamadas à API
+└── types/
+    └── index.ts       # Tipos TypeScript
+```
 
-## Learn More
+## 🔌 Integração com Backend
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+O frontend se comunica com os seguintes endpoints:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- `POST /login/` - Autenticação
+- `POST /chat` - Envio de mensagens
+- `POST /flashcards/{courseId}` - Geração de flashcards
+- `POST /mindmaps/{courseId}` - Geração de mapas mentais
+- `POST /retriever/{courseId}` - Busca de embeddings
 
-### Code Splitting
+## ✨ Funcionalidades
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+- ✅ Autenticação com persistência de sessão
+- ✅ Chat com IA por curso
+- ✅ Geração de flashcards
+- ✅ Exibição de fontes das respostas
+- ✅ Seleção de cursos
+- ✅ Tema claro/escuro
+- 🚧 Mapas mentais (em desenvolvimento)
 
-### Analyzing the Bundle Size
+## 🐛 Troubleshooting
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### Erro de conexão com API
+Verifique se:
+1. O backend está rodando em `http://localhost:8000`
+2. A variável `VITE_API_URL` está configurada corretamente
+3. Não há problemas de CORS
 
-### Making a Progressive Web App
+### Sessão não persiste
+Limpe o localStorage do navegador:
+```javascript
+localStorage.clear()
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## 📝 Licença
 
-### Advanced Configuration
+Este projeto é parte do sistema Chat Edu.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+---
 
-### Deployment
+## Lovable Project Info
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+**URL**: https://lovable.dev/projects/8aed65ab-6b0d-465f-973c-3f70afb16621
 
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Changes made via Lovable will be committed automatically to this repo.
